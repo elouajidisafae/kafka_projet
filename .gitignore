@@ -1,0 +1,14 @@
+# Local runtime data
+*.db
+*.sqlite
+*.sqlite3
+
+# Python and test artifacts
+__pycache__/
+.pytest_cache/
+.venv*/
+
+# Local configuration and logs
+.env
+.env.*
+*.log

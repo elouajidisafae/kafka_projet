@@ -34,6 +34,15 @@ pip install -r requirements.txt
 python main.py --mode web
 ```
 
+### Configuration
+
+The `forecast` block supports:
+
+- `persist_every_cycle`: persist forecast results after each monitoring cycle.
+- `trend_deadband_msgs_per_sec`: treat smaller trend slopes as stable.
+
+The `alerts` block controls the warning and critical lag thresholds.
+
 ---
 
 ## 🛠 Advanced Modules

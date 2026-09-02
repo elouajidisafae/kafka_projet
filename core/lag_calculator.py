@@ -3,7 +3,7 @@ Calcul du lag — supporte plusieurs clusters.
 Chaque ConsumerGroupStatus porte maintenant un cluster_name.
 """
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from confluent_kafka import Consumer, KafkaException
 from confluent_kafka.admin import AdminClient
 from core.kafka_client import get_committed_offsets
@@ -27,9 +27,15 @@ class ConsumerGroupStatus:
     total_lag: int = 0
     status: str = "OK"
     group_state: str = "Unknown"
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    partition_count: int | None = None
+    partitions_counted: int | None = None
 
     def __post_init__(self):
+        if self.partition_count is None:
+            self.partition_count = len(self.partitions)
+        if self.partitions_counted is None:
+            self.partitions_counted = len(self.partitions)
         self.total_lag = sum(p.lag for p in self.partitions)
         self.status = _compute_status(self.total_lag)
 
@@ -114,8 +120,9 @@ def compute_lag_for_group(
             tps = [TopicPartition(topic, pid) for pid in end_offsets.keys()]
             committed = committed_consumer.committed(tps, timeout=10)
             committed_offsets = {
-                tp.partition: max(0, tp.offset) if tp.offset >= 0 else 0
+                tp.partition: tp.offset
                 for tp in committed
+                if tp.offset >= 0
             }
         finally:
             committed_consumer.close()
@@ -129,6 +136,7 @@ def compute_lag_for_group(
                 lag=max(0, leo - committed_offsets.get(pid, 0)),
             )
             for pid, leo in end_offsets.items()
+            if pid in committed_offsets
         ], key=lambda p: p.partition_id)
 
         return ConsumerGroupStatus(
@@ -136,6 +144,8 @@ def compute_lag_for_group(
             group_id=group_id,
             topic=topic,
             partitions=parts,
+            partition_count=len(end_offsets),
+            partitions_counted=len(parts),
         )
 
     except Exception as e:

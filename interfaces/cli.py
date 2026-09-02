@@ -9,7 +9,7 @@ from rich.table import Table
 from rich.live import Live
 from rich.panel import Panel
 from rich import box
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.lag_calculator import compute_all_lags, ConsumerGroupStatus
 from core.db import init_db, save_lag, get_lag_history, purge_old_records
@@ -26,7 +26,7 @@ STATUS_STYLE = {
 
 
 def _build_table(results: list[ConsumerGroupStatus], cluster_filter=None) -> Table:
-    title = f"Kafka Health Monitor  •  {datetime.utcnow().strftime('%H:%M:%S')} UTC"
+    title = f"Kafka Health Monitor  •  {datetime.now(timezone.utc).strftime('%H:%M:%S')} UTC"
     if cluster_filter:
         title += f"  •  cluster: {cluster_filter}"
 

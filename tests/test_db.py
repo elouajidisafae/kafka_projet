@@ -7,7 +7,7 @@ afin de ne pas polluer la base de production.
 import pytest
 import tempfile
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 
@@ -80,8 +80,8 @@ class TestDatabase:
         import sqlite3
         from datetime import datetime, timedelta
 
-        old_ts = (datetime.utcnow() - timedelta(days=10)).isoformat()
-        new_ts = datetime.utcnow().isoformat()
+        old_ts = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
+        new_ts = datetime.now(timezone.utc).isoformat()
 
         with sqlite3.connect(str(tmp_db)) as conn:
             conn.execute(
@@ -120,3 +120,78 @@ class TestDatabase:
 
         assert len(rows) == 1
         assert rows[0]["total_lag"] == 100
+
+    def test_lag_history_migration_extends_schema_idempotently(self, tmp_db):
+        """la migration ajoute les colonnes demandées et reste idempotente."""
+        import sqlite3
+        with sqlite3.connect(str(tmp_db)) as conn:
+            conn.execute("DROP TABLE IF EXISTS lag_history")
+            conn.execute(
+                """
+                CREATE TABLE lag_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cluster_name TEXT NOT NULL DEFAULT 'default',
+                    group_id TEXT NOT NULL,
+                    topic TEXT NOT NULL,
+                    total_lag INTEGER NOT NULL,
+                    status TEXT NOT NULL,
+                    group_state TEXT NOT NULL DEFAULT 'Unknown',
+                    recorded_at TEXT NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                "INSERT INTO lag_history (cluster_name, group_id, topic, total_lag, status, recorded_at) VALUES (?, ?, ?, ?, ?, ?)",
+                ("dev", "group-a", "orders", 42, "OK", "2024-01-01T00:00:00+00:00")
+            )
+            conn.commit()
+
+        with patch("core.db.DB_PATH", tmp_db):
+            from core.db import init_db
+            init_db()
+            init_db()
+
+        with sqlite3.connect(str(tmp_db)) as conn:
+            columns = [row[1] for row in conn.execute("PRAGMA table_info(lag_history)")]
+            assert "log_end_offset" in columns
+            assert "committed_offset" in columns
+            assert "partition_count" in columns
+            assert "partitions_counted" in columns
+            assert "run_id" in columns
+
+            row = conn.execute(
+                "SELECT log_end_offset, committed_offset, partition_count, partitions_counted, run_id FROM lag_history WHERE group_id=?",
+                ("group-a",)
+            ).fetchone()
+            assert row[0] is None and row[1] is None and row[2] is None and row[3] is None and row[4] is None
+
+    def test_save_lag_records_offsets_and_invariant(self, tmp_db):
+        """les offsets enregistrés doivent respecter l'invariant total_lag = LEO - committed."""
+        with patch("core.db.DB_PATH", tmp_db):
+            from core.db import save_lag, get_lag_history
+            save_lag(
+                "dev", "my-group", "orders", 250, "WARNING",
+                log_end_offset=300,
+                committed_offset=50,
+                partition_count=2,
+                partitions_counted=2,
+                run_id="bench-s1"
+            )
+            row = get_lag_history("dev", "my-group", "orders", last_hours=1)[0]
+
+        assert row["total_lag"] == 250
+        assert row["log_end_offset"] == 300
+        assert row["committed_offset"] == 50
+        assert row["partition_count"] == 2
+        assert row["partitions_counted"] == 2
+        assert row["run_id"] == "bench-s1"
+        assert row["total_lag"] == row["log_end_offset"] - row["committed_offset"]
+
+    def test_run_id_defaults_to_null(self, tmp_db):
+        """si KHM_RUN_ID est absent, la colonne run_id est NULL."""
+        with patch("core.db.DB_PATH", tmp_db):
+            from core.db import save_lag, get_lag_history
+            save_lag("dev", "group-a", "orders", 10, "OK")
+            row = get_lag_history("dev", "group-a", "orders", last_hours=1)[0]
+
+        assert row["run_id"] is None

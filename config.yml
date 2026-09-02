@@ -16,12 +16,9 @@ exclude_topics: []
 monitor:
   history_retention_days: 7
   refresh_interval: 5
+forecast:
+  persist_every_cycle: true
+  trend_deadband_msgs_per_sec: 0.05
 web:
   host: 0.0.0.0
   port: 8080
-business:
-  revenue_per_message: 0.05   # valeur par défaut (€)
-
-  topics:
-    logs: 0.01
-    orders: 0.1

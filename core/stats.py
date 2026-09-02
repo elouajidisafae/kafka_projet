@@ -9,9 +9,10 @@ Calcule :
 - Comparaison inter-clusters
 """
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from .config_loader import CONFIG
+from .db import utc_now_iso
 
 DB_PATH = Path(__file__).parent.parent / "lag_history.db"
 
@@ -115,7 +116,7 @@ def get_lag_timeline(hours: int = 24) -> list[dict]:
 
     Retourne : [{cluster_name, bucket, total_lag}, ...]
     """
-    since = (datetime.utcnow() - timedelta(hours=hours)).isoformat()
+    since = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
     with _get_connection() as conn:
         rows = conn.execute("""
@@ -158,6 +159,6 @@ def get_global_stats() -> dict:
             "total_records": total_records,
             "oldest_record": oldest,
             "newest_record": newest,
-            "generated_at":  datetime.utcnow().isoformat(),
+            "generated_at":  utc_now_iso(),
         }
     }

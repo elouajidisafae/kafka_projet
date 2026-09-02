@@ -21,8 +21,9 @@ from core.stats import get_global_stats
 from core.health_score import compute_health_score
 from core.recommender import get_recommendations
 from core import audit
+from core import __version__
 
-app = FastAPI(title="Kafka Health Monitor", version="2.0.0")
+app = FastAPI(title="Kafka Health Monitor", version=__version__)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 _last_health_score = {}
@@ -36,7 +37,11 @@ def _background_collector():
             results = compute_all_lags()
             for r in results:
                 if r.total_lag >= 0:
-                    save_lag(r.cluster_name, r.group_id, r.topic, r.total_lag, r.status, r.group_state)
+                    save_lag(
+                        r.cluster_name, r.group_id, r.topic, r.total_lag, r.status,
+                        r.group_state, partition_count=r.partition_count,
+                        partitions_counted=r.partitions_counted,
+                    )
                     
                     # Audit Trail for alerts
                     key = f"{r.cluster_name}:{r.group_id}:{r.topic}"

@@ -165,3 +165,42 @@ class TestConsumerGroupStatus:
             )
         assert status.status == "CRITICAL"
         assert status.total_lag == 15000
+
+
+class TestInvalidCommittedOffsets:
+    def test_invalid_offset_is_excluded_from_lag(self):
+        class Probe:
+            def list_topics(self, topic, timeout):
+                class Metadata:
+                    pass
+                metadata = Metadata()
+                metadata.topics = {topic: Metadata()}
+                metadata.topics[topic].partitions = {0: None, 1: None, 2: None}
+                return metadata
+
+            def get_watermark_offsets(self, topic_partition, timeout):
+                return (0, {0: 100, 1: 200, 2: 300}[topic_partition.partition])
+
+            def close(self):
+                pass
+
+        class CommittedConsumer:
+            def committed(self, topic_partitions, timeout):
+                from confluent_kafka import TopicPartition
+                return [
+                    TopicPartition("orders", 0, 90),
+                    TopicPartition("orders", 1, -1001),
+                    TopicPartition("orders", 2, 250),
+                ]
+
+            def close(self):
+                pass
+
+        with patch("core.lag_calculator._make_consumer", return_value=Probe()), \
+             patch("core.lag_calculator.Consumer", return_value=CommittedConsumer()):
+            result = compute_lag_for_group("dev", "kafka", "group", "orders")
+
+        assert result.partition_count == 3
+        assert result.partitions_counted == 2
+        assert [p.partition_id for p in result.partitions] == [0, 2]
+        assert result.total_lag == (100 - 90) + (300 - 250)
