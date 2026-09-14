@@ -16,7 +16,7 @@ while True:
     for topic in TOPICS:
         for _ in range(5):      # 5 messages par topic (au lieu de 100)
             counter += 1
-            msg = f"msg-{topic}-{counter}-{random.randint(1000,9999)}"
+            msg = f"msg-{topic}-{counter}-{random.randint(1000,10_000 - 1)}"
             producer.produce(topic, value=msg.encode())
         producer.flush()
     print(f"[producer] {counter} messages envoyés")

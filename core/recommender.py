@@ -1,101 +1,93 @@
-"""
-Intelligent Recommendation Engine — Operational Excellence.
-Analyze lag trend, consumer group state, and historical data to provide proactive advice.
-"""
-from typing import List, Dict, Optional
-from datetime import datetime
+"""Operational recommendations from lag trends, topology, and persisted group state."""
+from collections import Counter
+
 from .config_loader import CONFIG
 from .forecasting import forecast_lag
+from .db import get_latest_per_group, get_group_state_streak
 
-def get_recommendations() -> List[Dict]:
-    """
-    Analyzes current state and returns human-readable recommendations.
-    """
-    from .db import get_latest_per_group
-    rows = get_latest_per_group()
-    
+PRIORITY_ORDER = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
+RULE_ORDER = {name: i for i, name in enumerate(("scale", "topology", "stranded", "stalled", "rebalance"))}
+
+
+def _cap_pair(recommendations: list[dict]) -> list[dict]:
+    recommendations.sort(key=lambda r: (PRIORITY_ORDER[r["priority"]],
+                                        RULE_ORDER[r["id"].rsplit("-", 1)[-1]]))
+    return recommendations[:CONFIG.get("recommendations", {}).get("max_per_pair", 2)]
+
+
+def get_recommendations() -> list[dict]:
     recommendations = []
-    
-    for row in rows:
-        cluster = row["cluster_name"]
-        group_id = row["group_id"]
-        topic = row["topic"]
-        current_lag = row["total_lag"]
-        state = row["group_state"]
-        
-        # Get trend analysis
-        forecast = forecast_lag(cluster, group_id, topic)
-        trend = forecast.get("trend", "STABLE")
-        
-        rec = analyze_row(cluster, group_id, topic, current_lag, state, trend, forecast)
-        if rec:
-            recommendations.append(rec)
-            
-    # Sort by severity: CRITICAL first, then WARNING, then INFO
-    severity_map = {"CRITICAL": 0, "WARNING": 1, "INFO": 2}
-    recommendations.sort(key=lambda x: severity_map.get(x["severity"], 99))
-    
-    # Limit to top 3 most critical
-    return recommendations[:3]
+    for row in get_latest_per_group():
+        cluster, group, topic = row["cluster_name"], row["group_id"], row["topic"]
+        forecast = forecast_lag(cluster, group, topic)
+        streak = get_group_state_streak(cluster, group)
+        cycles = streak["streak_count"] if streak and streak["state"] == row["group_state"] else 0
+        recommendations.extend(analyze_row(
+            cluster, group, topic, row["total_lag"], row["group_state"],
+            forecast.get("trend"), forecast, consumer_count=row.get("consumer_count"),
+            partition_count=row.get("partition_count"), rebalance_cycles=cycles))
 
-def analyze_row(cluster, group_id, topic, current_lag, state, trend, forecast) -> Optional[Dict]:
-    """
-    Internal logic to generate advice based on state and trend.
-    """
-    # 1. Under-provisioned: Lag is increasing and group is stable
-    if trend == "INCREASING" and state == "STABLE":
-        return {
-            "id": f"{cluster}-{group_id}-{topic}-under",
-            "cluster": cluster,
-            "group_id": group_id,
-            "topic": topic,
-            "type": "PERFORMANCE",
-            "severity": "WARNING",
-            "title": "Under-provisioned Consumer",
-            "advice": f"Consumer count for topic '{topic}' might be too low. Lag is increasing at {forecast.get('slope_per_min', 0)} msgs/min despite STABLE group state.",
-            "action": "Consider increasing consumer count or optimizing processing logic."
-        }
+    recommendations.sort(key=lambda r: (PRIORITY_ORDER[r["priority"]], r["cluster_name"],
+                                        r["group_id"], r["topic"]))
+    counts = Counter()
+    result = []
+    cap = CONFIG.get("recommendations", {}).get("max_per_cluster", 10)
+    for rec in recommendations:
+        cluster = rec["cluster_name"]
+        if rec["priority"] == "HIGH" or counts[cluster] < cap:
+            result.append(rec)
+            counts[cluster] += 1
+    return result
 
-    # 2. Inactive group with lag
-    if current_lag > CONFIG["alerts"]["warning_threshold"] and state in ["EMPTY", "DEAD"]:
-        return {
-            "id": f"{cluster}-{group_id}-{topic}-offline",
-            "cluster": cluster,
-            "group_id": group_id,
-            "topic": topic,
-            "type": "AVAILABILITY",
-            "severity": "CRITICAL",
-            "title": "Consumers Offline",
-            "advice": f"Significant lag ({current_lag}) detected for group '{group_id}', but no active consumers are connected.",
-            "action": "Restart consumer instances to process pending messages."
-        }
 
-    # 3. High Lag with Stable Trend (Stalled?)
-    if current_lag > CONFIG["alerts"]["critical_threshold"] and trend == "STABLE" and state == "STABLE":
-        return {
-            "id": f"{cluster}-{group_id}-{topic}-stalled",
-            "cluster": cluster,
-            "group_id": group_id,
-            "topic": topic,
-            "type": "STABILITY",
-            "severity": "CRITICAL",
-            "title": "Possible Processing Bottleneck",
-            "advice": f"High stable lag ({current_lag}) detected. Consumers are active but not reducing the backlog.",
-            "action": "Investigate if consumers are hung or if processing time per message has increased."
-        }
+def analyze_row(cluster, group_id, topic, current_lag, state, trend, forecast,
+                *, consumer_count=None, partition_count=None, rebalance_cycles=0) -> list[dict]:
+    """Evaluate every rule, retaining the highest-priority matches for this pair."""
+    settings = CONFIG.get("recommendations", {})
+    confidence = forecast.get("confidence")
+    gate = confidence in {"HIGH", "MEDIUM"} and confidence in settings.get("confidence_gate", ["HIGH", "MEDIUM"])
+    slope_per_min = forecast.get("slope_per_min")
+    r_squared = forecast.get("r_squared")
+    eta_critical_min = forecast.get("eta_critical_min")
+    topology_known = consumer_count is not None and partition_count is not None and partition_count > 0
+    values = dict(current_lag=current_lag, slope_per_min=slope_per_min, r_squared=r_squared,
+                  confidence=confidence, eta_critical_min=eta_critical_min,
+                  consumer_count=consumer_count, partition_count=partition_count,
+                  group_state=state, rebalance_cycles=rebalance_cycles)
+    result = []
 
-    # 4. Rebalancing instability
-    if state in ["PREPARING_REBALANCE", "COMPLETING_REBALANCE"]:
-        return {
-            "id": f"{cluster}-{group_id}-{topic}-rebalance",
-            "cluster": cluster,
-            "group_id": group_id,
-            "topic": topic,
-            "type": "STABILITY",
-            "severity": "INFO",
-            "title": "Group Rebalancing",
-            "advice": f"Group '{group_id}' is currently rebalancing.",
-            "action": "Monitoring stability. If this persists, check for network issues or consumer churn."
-        }
+    def emit(suffix, kind, priority, title, advice, action, keys):
+        result.append(dict(id=f"{cluster}-{group_id}-{topic}-{suffix}", cluster_name=cluster,
+                           group_id=group_id, topic=topic, type=kind, priority=priority,
+                           title=title, advice=advice, action=action,
+                           metrics={key: values[key] for key in keys}))
 
-    return None
+    if (trend == "INCREASING" and gate and topology_known and consumer_count < partition_count
+            and (forecast.get("eta_critical_sec") or 0) > 0):
+        emit("scale", "PERFORMANCE", confidence, "Scale consumer group",
+             f"Lag is rising at {slope_per_min} msg/min. CRITICAL threshold projected in ~{eta_critical_min} min (R2={r_squared}).",
+             f"Increase consumer instances (current: {consumer_count}, partitions: {partition_count}).",
+             ("slope_per_min", "r_squared", "confidence", "eta_critical_min", "consumer_count", "partition_count"))
+
+    if trend == "INCREASING" and gate and topology_known and consumer_count >= partition_count:
+        emit("topology", "CAPACITY", "MEDIUM", "Partition count may be limiting",
+             f"Lag is rising at {slope_per_min} msg/min while all {partition_count} partitions are already assigned to {consumer_count} consumers.",
+             f"Review partition count for topic '{topic}' before adding consumers.",
+             ("slope_per_min", "confidence", "consumer_count", "partition_count"))
+
+    if state in {"EMPTY", "DEAD"} and current_lag > CONFIG["alerts"]["warning_threshold"]:
+        emit("stranded", "AVAILABILITY", "HIGH", "Stranded messages",
+             f"{current_lag} messages pending. Group state: {state}. These messages will not self-resolve.",
+             f"Restart the consumer for group '{group_id}'.", ("current_lag", "group_state"))
+
+    if current_lag >= CONFIG["alerts"]["critical_threshold"] and trend == "STABLE" and state == "STABLE":
+        emit("stalled", "PERFORMANCE", "HIGH", "Possible processing bottleneck",
+             f"Lag is {current_lag} messages and not decreasing (slope {slope_per_min} msg/min).",
+             "Check consumer throughput and processing errors.", ("current_lag", "slope_per_min", "group_state"))
+
+    if (state in {"PREPARING_REBALANCE", "COMPLETING_REBALANCE"}
+            and rebalance_cycles >= settings.get("rebalance_cycles_threshold", 3)):
+        emit("rebalance", "STABILITY", "MEDIUM", "Group rebalance not completing",
+             f"Group has remained in {state} for {rebalance_cycles} consecutive collection cycles.",
+             "Check consumer liveness and session timeout configuration.", ("group_state", "rebalance_cycles"))
+    return _cap_pair(result)

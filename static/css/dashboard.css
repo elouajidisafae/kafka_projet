@@ -553,3 +553,4 @@ html.light .nav-link.active {
 .severity-warning { border-top: 3px solid #facc15; }
 .severity-critical { border-top: 3px solid #f87171; }
 .severity-info     { border-top: 3px solid var(--primary); }
+.suggestion-metrics { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.75rem; }

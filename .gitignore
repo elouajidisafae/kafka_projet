@@ -12,3 +12,15 @@ __pycache__/
 .env
 .env.*
 *.log
+# Build and local validation artifacts
+*.egg-info/
+build/
+artifacts/
+
+# Internal planning, reviews, and execution evidence
+/internal/
+/docs/batch*-validation.md
+/docs/batch*-evidence/
+
+# SQLite auxiliary files
+*.db-*

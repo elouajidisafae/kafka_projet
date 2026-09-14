@@ -40,7 +40,7 @@ class TestComputeStatus:
         }):
             assert _compute_status(1000) == "WARNING"
             assert _compute_status(5000) == "WARNING"
-            assert _compute_status(9999) == "WARNING"
+            assert _compute_status(10_000 - 1) == "WARNING"
 
     def test_critical_when_lag_at_threshold(self):
         """Lag exactement au seuil critical → CRITICAL."""

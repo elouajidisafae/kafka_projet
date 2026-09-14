@@ -40,7 +40,7 @@ def _background_collector():
                     save_lag(
                         r.cluster_name, r.group_id, r.topic, r.total_lag, r.status,
                         r.group_state, partition_count=r.partition_count,
-                        partitions_counted=r.partitions_counted,
+                        partitions_counted=r.partitions_counted, consumer_count=r.consumer_count,
                     )
                     
                     # Audit Trail for alerts
@@ -51,25 +51,26 @@ def _background_collector():
                             audit.log_event(
                                 event_type="ALERT",
                                 severity=r.status,
-                                message=f"Alerte déclenchée sur {key} : {r.status}",
+                                message=f"Alert triggered on {key}: {r.status}",
                                 details={"lag": r.total_lag, "state": r.group_state}
                             )
                         elif old_status in ["WARNING", "CRITICAL"] and r.status == "OK":
                             audit.log_event(
                                 event_type="ALERT",
                                 severity="INFO",
-                                message=f"Alerte résolue sur {key} (Retour à OK).",
+                                message=f"Alert resolved on {key} (back to OK).",
                                 details={"lag": r.total_lag}
                             )
                         _last_statuses[key] = r.status
 
             purge_old_records()
+            forecast_all()
             # Calcul du Health Score global
             global _last_health_score
             _last_health_score = compute_health_score(results)
-            print(f"[health] Score global : {_last_health_score['score']}/100 ({_last_health_score['grade']})")
+            print(f"[health] Global score: {_last_health_score['score']}/100 ({_last_health_score['grade']})")
         except Exception as e:
-            print(f"[collector] Erreur : {e}")
+            print(f"[collector] Error: {e}")
         time.sleep(interval)
 
 
@@ -117,7 +118,7 @@ def api_recommendations():
         audit.log_event(
             event_type="RECOMMENDATION",
             severity="INFO",
-            message=f"Analyse effectuée : {len(recs)} recommandation(s) générée(s).",
+            message=f"Analysis completed: {len(recs)} recommendation(s) generated.",
             details={"count": len(recs)}
         )
     return {"recommendations": recs}

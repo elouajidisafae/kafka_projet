@@ -61,8 +61,12 @@ def _collect_and_save() -> list[ConsumerGroupStatus]:
     results = compute_all_lags()
     for r in results:
         if r.total_lag >= 0:
-            save_lag(r.cluster_name, r.group_id, r.topic, r.total_lag, r.status)
+            save_lag(r.cluster_name, r.group_id, r.topic, r.total_lag, r.status,
+                     r.group_state, partition_count=r.partition_count,
+                     partitions_counted=r.partitions_counted, consumer_count=r.consumer_count)
     purge_old_records()
+    from core.forecasting import forecast_all
+    forecast_all()
     return results
 
 
@@ -76,11 +80,19 @@ def cli():
 @click.option("--cluster", "-c", default=None, help="Filtrer par cluster (ex: production)")
 def status(cluster):
     """Snapshot instantané du lag. Optionnel : --cluster nom"""
-    console.print("\n[cyan]Collecte des métriques Kafka...[/cyan]")
+    console.print("\n[cyan]Collecting Kafka metrics...[/cyan]")
     results = _collect_and_save()
     if cluster:
         results = [r for r in results if r.cluster_name == cluster]
     console.print(_build_table(results, cluster_filter=cluster))
+    from core.recommender import get_recommendations
+    for rec in get_recommendations():
+        if cluster and rec["cluster_name"] != cluster:
+            continue
+        console.print(Panel(
+            f"{rec['advice']}\n{rec['action']}\nMetrics: {rec['metrics']}",
+            title=f"{rec['priority']} | {rec['title']} | {rec['cluster_name']}/{rec['group_id']}/{rec['topic']}",
+            expand=False))
     console.print()
 
 

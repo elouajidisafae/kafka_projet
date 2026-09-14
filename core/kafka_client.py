@@ -5,6 +5,7 @@ Responsabilité unique : se connecter au cluster et lire les offsets
 bruts (log-end-offset et committed-offset) pour chaque partition.
 Le calcul du lag lui-même est fait dans lag_calculator.py.
 """
+from dataclasses import dataclass
 from confluent_kafka import Consumer, KafkaException
 from confluent_kafka.admin import AdminClient, NewTopic
 from .config_loader import CONFIG
@@ -142,6 +143,99 @@ def get_committed_offsets(group_id: str, topic: str, bootstrap_servers: str) -> 
         return {}
     
     
+def normalize_group_state(state) -> str:
+    value = str(state).rsplit(".", 1)[-1].upper()
+    return {
+        "PREPARINGREBALANCE": "PREPARING_REBALANCE",
+        "PREPARINGREBALANCING": "PREPARING_REBALANCE",
+        "PREPARING_REBALANCING": "PREPARING_REBALANCE",
+        "COMPLETINGREBALANCE": "COMPLETING_REBALANCE",
+        "COMPLETINGREBALANCING": "COMPLETING_REBALANCE",
+        "COMPLETING_REBALANCING": "COMPLETING_REBALANCE",
+    }.get(value, value)
+
+
+@dataclass
+class GroupMember:
+    member_id: str
+    client_id: str
+    host: str
+    assigned_partitions: dict[str, list[int]]
+
+
+@dataclass
+class GroupDescription:
+    group_id: str
+    state: str
+    members: list[GroupMember]
+    assignments_available: bool = True
+
+
+def describe_groups(cluster_name: str, *, bootstrap_servers: str | None = None,
+                    group_ids: list[str] | None = None) -> dict[str, GroupDescription]:
+    """Full group descriptions including member assignments."""
+    descriptions = {}
+    try:
+        if bootstrap_servers is None:
+            bootstrap_servers = next(c["bootstrap_servers"] for c in CONFIG["clusters"]
+                                     if c["name"] == cluster_name)
+        admin = AdminClient({"bootstrap.servers": bootstrap_servers})
+        if group_ids is None:
+            excluded = set(CONFIG.get("exclude_groups", [])) | {
+                "_khm_probe", "_khm_probe_leo", "_kafka_health_monitor_probe"}
+            group_ids = sorted(g.group_id for g in admin.list_consumer_groups().result().valid
+                               if g.group_id not in excluded)
+        descriptions = {gid: GroupDescription(gid, "UNKNOWN", [], False) for gid in group_ids}
+        if not group_ids:
+            return descriptions
+        futures = admin.describe_consumer_groups(group_ids)
+        for gid in group_ids:
+            try:
+                info = futures[gid].result()
+                members = []
+                available = True
+                for member in info.members:
+                    assigned = {}
+                    assignment = member.assignment
+                    if assignment is None or assignment.topic_partitions is None:
+                        available = False
+                    else:
+                        for tp in assignment.topic_partitions:
+                            assigned.setdefault(tp.topic, []).append(tp.partition)
+                    members.append(GroupMember(member.member_id, member.client_id,
+                                               member.host, assigned))
+                descriptions[gid] = GroupDescription(
+                    gid, normalize_group_state(info.state), members, available)
+            except Exception as exc:
+                print(f"[kafka_client] Could not describe group {gid}: {exc}")
+    except Exception as exc:
+        print(f"[kafka_client] Could not describe groups for {cluster_name}: {exc}")
+    return descriptions
+
+
+def consumer_count_for_topic(desc: GroupDescription | None, topic: str) -> int | None:
+    """Members holding >= 1 partition of topic. None when the count is unreliable."""
+    if desc is None:
+        return None
+    state = normalize_group_state(desc.state)
+    if state in {"EMPTY", "DEAD"}:
+        return 0
+    if state != "STABLE" or not desc.assignments_available:
+        return None
+    return sum(bool(member.assigned_partitions.get(topic)) for member in desc.members)
+
+
+def get_all_group_states(bootstrap_servers: str, group_ids: list[str]) -> dict[str, str]:
+    """
+    Retourne l'état de plusieurs consumer groups en un seul appel Admin.
+    Plus efficace que d'appeler get_consumer_group_state() en boucle.
+
+    Retourne : {group_id: state_string}
+    """
+    descriptions = describe_groups("", bootstrap_servers=bootstrap_servers, group_ids=group_ids)
+    return {gid: descriptions[gid].state if gid in descriptions else "UNKNOWN" for gid in group_ids}
+
+
 def get_consumer_group_state(group_id: str, bootstrap_servers: str) -> str:
     """
     Retourne l'état actuel d'un consumer group.
@@ -155,58 +249,4 @@ def get_consumer_group_state(group_id: str, bootstrap_servers: str) -> str:
 
     Utilise l'AdminClient Kafka pour lire les métadonnées du groupe.
     """
-    try:
-        admin = AdminClient({"bootstrap.servers": bootstrap_servers})
-        result = admin.describe_consumer_groups([group_id])
-
-        if group_id not in result:
-            return "Unknown"
-
-        group_future = result[group_id]
-        group_info   = group_future.result()
-        state        = str(group_info.state)
-
-        # Normalise le format (confluent-kafka retourne "ConsumerGroupState.Stable")
-        if "." in state:
-            state = state.split(".")[-1]
-
-        return state
-
-    except Exception as e:
-        print(f"[kafka_client] Erreur get_state {group_id}: {e}")
-        return "Unknown"
-
-
-def get_all_group_states(bootstrap_servers: str, group_ids: list[str]) -> dict[str, str]:
-    """
-    Retourne l'état de plusieurs consumer groups en un seul appel Admin.
-    Plus efficace que d'appeler get_consumer_group_state() en boucle.
-
-    Retourne : {group_id: state_string}
-    """
-    if not group_ids:
-        return {}
-
-    try:
-        admin  = AdminClient({"bootstrap.servers": bootstrap_servers})
-        result = admin.describe_consumer_groups(group_ids)
-
-        states = {}
-        for gid in group_ids:
-            if gid in result:
-                try:
-                    info        = result[gid].result()
-                    state       = str(info.state)
-                    if "." in state:
-                        state = state.split(".")[-1]
-                    states[gid] = state
-                except Exception:
-                    states[gid] = "Unknown"
-            else:
-                states[gid] = "Unknown"
-
-        return states
-
-    except Exception as e:
-        print(f"[kafka_client] Erreur get_all_states: {e}")
-        return {gid: "Unknown" for gid in group_ids}
+    return get_all_group_states(bootstrap_servers, [group_id])[group_id]

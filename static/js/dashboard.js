@@ -370,10 +370,10 @@ async function refreshRecommendations() {
     }
 
     container.innerHTML = recs.map(r => `
-      <div class="suggestion-card severity-${r.severity.toLowerCase()}">
+      <div class="suggestion-card severity-${({HIGH: 'critical', MEDIUM: 'warning', LOW: 'info'})[r.priority]}">
         <div class="suggestion-header">
           <div class="suggestion-title">${r.title}</div>
-          <div class="suggestion-tag">${r.type}</div>
+          <div class="suggestion-tag">${r.priority} | ${r.type}</div>
         </div>
         <div class="suggestion-body">
           ${r.advice}
@@ -382,8 +382,9 @@ async function refreshRecommendations() {
           <strong>Action:</strong> ${r.action}
         </div>
         <div style="margin-top:10px; font-size:0.65rem; color:#475569">
-          ${r.cluster} / ${r.group_id} / ${r.topic}
+          ${r.cluster_name} / ${r.group_id} / ${r.topic}
         </div>
+        <pre class="suggestion-metrics">${JSON.stringify(r.metrics, null, 2)}</pre>
       </div>
     `).join('');
   } catch (err) {

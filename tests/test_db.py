@@ -158,12 +158,13 @@ class TestDatabase:
             assert "partition_count" in columns
             assert "partitions_counted" in columns
             assert "run_id" in columns
+            assert "consumer_count" in columns
 
             row = conn.execute(
-                "SELECT log_end_offset, committed_offset, partition_count, partitions_counted, run_id FROM lag_history WHERE group_id=?",
+                "SELECT log_end_offset, committed_offset, partition_count, partitions_counted, run_id, consumer_count FROM lag_history WHERE group_id=?",
                 ("group-a",)
             ).fetchone()
-            assert row[0] is None and row[1] is None and row[2] is None and row[3] is None and row[4] is None
+            assert row[0] is None and row[1] is None and row[2] is None and row[3] is None and row[4] is None and row[5] is None
 
     def test_save_lag_records_offsets_and_invariant(self, tmp_db):
         """les offsets enregistrés doivent respecter l'invariant total_lag = LEO - committed."""

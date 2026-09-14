@@ -2,12 +2,13 @@
 Persistance SQLite — historique du lag avec support multi-cluster.
 """
 import sqlite3
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .config_loader import CONFIG
 
-DB_PATH = Path(__file__).parent.parent / "lag_history.db"
+DB_PATH = Path(os.environ.get("KHM_DB_PATH", str(Path(__file__).parent.parent / "lag_history.db")))
 
 
 def utc_now_iso() -> str:
@@ -24,6 +25,7 @@ def parse_iso_utc(ts: str) -> datetime:
 
 
 def _get_connection() -> sqlite3.Connection:
+    Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     return conn
@@ -43,7 +45,7 @@ def init_db():
                 partition_count   INTEGER,
                 partitions_counted INTEGER,
                 status            TEXT    NOT NULL,
-                group_state       TEXT    NOT NULL DEFAULT 'Unknown',
+                group_state       TEXT    NOT NULL DEFAULT 'UNKNOWN',
                 run_id            TEXT,
                 recorded_at       TEXT    NOT NULL
             )
@@ -87,12 +89,23 @@ def init_db():
                 recorded_at TEXT    NOT NULL
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS group_state_streak (
+                cluster_name TEXT NOT NULL,
+                group_id TEXT NOT NULL,
+                state TEXT NOT NULL,
+                streak_count INTEGER NOT NULL,
+                last_seen TEXT NOT NULL,
+                PRIMARY KEY (cluster_name, group_id)
+            )
+        """)
         for stmt in [
             "ALTER TABLE lag_history ADD COLUMN log_end_offset INTEGER",
             "ALTER TABLE lag_history ADD COLUMN committed_offset INTEGER",
             "ALTER TABLE lag_history ADD COLUMN partition_count INTEGER",
             "ALTER TABLE lag_history ADD COLUMN partitions_counted INTEGER",
             "ALTER TABLE lag_history ADD COLUMN run_id TEXT",
+            "ALTER TABLE lag_history ADD COLUMN consumer_count INTEGER",
         ]:
             try:
                 conn.execute(stmt)
@@ -101,20 +114,22 @@ def init_db():
 
 
 def save_lag(cluster_name: str, group_id: str, topic: str,
-             total_lag: int, status: str, group_state: str = "Unknown",
+             total_lag: int, status: str, group_state: str = "UNKNOWN",
              *, log_end_offset: int | None = None, committed_offset: int | None = None,
              partition_count: int | None = None, partitions_counted: int | None = None,
-             run_id: str | None = None):
+             run_id: str | None = None, consumer_count: int | None = None):
+    from .kafka_client import normalize_group_state
+    group_state = normalize_group_state(group_state)
     now = utc_now_iso()
     with _get_connection() as conn:
         conn.execute(
             """INSERT INTO lag_history
                (cluster_name, group_id, topic, total_lag, log_end_offset, committed_offset,
-                partition_count, partitions_counted, status, group_state, run_id, recorded_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                partition_count, partitions_counted, consumer_count, status, group_state, run_id, recorded_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 cluster_name, group_id, topic, total_lag, log_end_offset, committed_offset,
-                partition_count, partitions_counted, status, group_state, run_id or CONFIG.get("run_id"), now
+                partition_count, partitions_counted, consumer_count, status, group_state, run_id or CONFIG.get("run_id"), now
             )
         )
         conn.commit()
@@ -137,6 +152,7 @@ def get_latest_per_group(cluster_name: str = None) -> list[dict]:
         if cluster_name:
             rows = conn.execute(
                 """SELECT cluster_name, group_id, topic, total_lag, status, group_state,
+                          partition_count, partitions_counted, consumer_count,
                           MAX(recorded_at) as recorded_at
                    FROM lag_history WHERE cluster_name=?
                    GROUP BY cluster_name, group_id, topic
@@ -146,6 +162,7 @@ def get_latest_per_group(cluster_name: str = None) -> list[dict]:
         else:
             rows = conn.execute(
                 """SELECT cluster_name, group_id, topic, total_lag, status, group_state,
+                          partition_count, partitions_counted, consumer_count,
                           MAX(recorded_at) as recorded_at
                    FROM lag_history
                    GROUP BY cluster_name, group_id, topic
@@ -231,3 +248,23 @@ def save_forecast(forecast: dict, run_id: str | None = None) -> None:
             ),
         )
         conn.commit()
+
+
+def update_group_state_streak(cluster_name: str, group_id: str, state: str) -> None:
+    """Record one observation per group per collection cycle, across processes."""
+    from .kafka_client import normalize_group_state
+    with _get_connection() as conn:
+        conn.execute("""
+            INSERT INTO group_state_streak VALUES (?, ?, ?, 1, ?)
+            ON CONFLICT(cluster_name, group_id) DO UPDATE SET
+                streak_count = CASE WHEN state = excluded.state THEN streak_count + 1 ELSE 1 END,
+                state = excluded.state,
+                last_seen = excluded.last_seen
+        """, (cluster_name, group_id, normalize_group_state(state), utc_now_iso()))
+
+
+def get_group_state_streak(cluster_name: str, group_id: str) -> dict | None:
+    with _get_connection() as conn:
+        row = conn.execute("SELECT * FROM group_state_streak WHERE cluster_name=? AND group_id=?",
+                           (cluster_name, group_id)).fetchone()
+    return dict(row) if row else None

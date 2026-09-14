@@ -18,6 +18,13 @@ DEFAULTS = {
     "forecast": {
         "persist_every_cycle": True,
         "trend_deadband_msgs_per_sec": 0.05,
+        "window_hours": 1,
+    },
+    "recommendations": {
+        "max_per_cluster": 10,
+        "max_per_pair": 2,
+        "rebalance_cycles_threshold": 3,
+        "confidence_gate": ["HIGH", "MEDIUM"],
     },
     "web": {"host": "0.0.0.0", "port": 8080},
     "exclude_topics": [],

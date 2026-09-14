@@ -6,7 +6,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from confluent_kafka import Consumer, KafkaException
 from confluent_kafka.admin import AdminClient
-from core.kafka_client import get_committed_offsets
+from core.kafka_client import describe_groups, consumer_count_for_topic
+from core.db import update_group_state_streak
 from .config_loader import CONFIG
 
 
@@ -26,7 +27,8 @@ class ConsumerGroupStatus:
     partitions: list[PartitionLag] = field(default_factory=list)
     total_lag: int = 0
     status: str = "OK"
-    group_state: str = "Unknown"
+    group_state: str = "UNKNOWN"
+    consumer_count: int | None = None
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     partition_count: int | None = None
     partitions_counted: int | None = None
@@ -172,23 +174,23 @@ def compute_all_lags() -> list[ConsumerGroupStatus]:
         print(f"[monitor] Cluster '{name}' → {servers}")
 
         try:
-            groups = get_consumer_groups(servers)
+            descriptions = describe_groups(name)
+            groups = list(descriptions)
             topics = get_topics(servers)
-            print(f"[monitor]   groupes={groups} topics={topics}")
+            print(f"[monitor]   groups={groups} topics={topics}")
         except Exception as e:
-            print(f"[monitor]   Erreur connexion : {e}")
+            print(f"[monitor]   Connection error: {e}")
             continue
 
         # Récupère tous les états en un seul appel Admin (optimisé)
-        from .kafka_client import get_all_group_states
-        group_states = get_all_group_states(servers, groups)
-        print(f"[monitor]   états={group_states}")
-
         for group in groups:
-            state = group_states.get(group, "Unknown")
+            desc = descriptions[group]
+            state = desc.state
+            update_group_state_streak(name, group, state)
             for topic in topics:
                 result = compute_lag_for_group(name, servers, group, topic)
                 result.group_state = state
+                result.consumer_count = consumer_count_for_topic(desc, topic)
                 results.append(result)
                 print(f"[monitor]   {name}/{group}/{topic} → lag={result.total_lag} {result.status} [{state}]")
 

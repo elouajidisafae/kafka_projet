@@ -18,10 +18,13 @@ def forecast_lag(
     cluster_name: str,
     group_id: str,
     topic: str,
+    window_hours: float | None = None,
 ) -> dict:
     warn = CONFIG["alerts"]["warning_threshold"]
     crit = CONFIG["alerts"]["critical_threshold"]
-    records = get_lag_history(cluster_name, group_id, topic, last_hours=FORECAST_WINDOW_HOURS)
+    if window_hours is None:
+        window_hours = CONFIG.get("forecast", {}).get("window_hours", FORECAST_WINDOW_HOURS)
+    records = get_lag_history(cluster_name, group_id, topic, last_hours=window_hours)
 
     if records:
         timestamps = np.array([_parse_timestamp(r["recorded_at"]) for r in records])
@@ -31,7 +34,7 @@ def forecast_lag(
     if len(records) < MIN_POINTS:
         return {
             "enough_data": False,
-            "reason": f"Seulement {len(records)} points (minimum {MIN_POINTS})",
+            "reason": f"Only {len(records)} points (minimum {MIN_POINTS})",
             "current_lag": records[-1]["total_lag"] if records else 0,
         }
 
@@ -132,7 +135,7 @@ def forecast_all() -> list[dict]:
             return (3, 0)
         if f["trend"] == "INCREASING":
             eta = f["eta_critical_sec"]
-            return (0, eta if eta >= 0 else 999999)
+            return (0, eta if eta >= 0 else float("inf"))
         elif f["trend"] == "STABLE":
             return (1, 0)
         else:
