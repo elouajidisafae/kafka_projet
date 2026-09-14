@@ -24,3 +24,6 @@ artifacts/
 
 # SQLite auxiliary files
 *.db-*
+
+# Public synthetic regression fixture (never a runtime database)
+!/tests/fixtures/golden.db

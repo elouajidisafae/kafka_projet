@@ -1,0 +1,84 @@
+[
+  {
+    "action": "Check consumer throughput and processing errors.",
+    "advice": "Lag is 12000 messages and not decreasing (slope -0.0 msg/min).",
+    "cluster_name": "alpha",
+    "group_id": "flat",
+    "id": "alpha-flat-orders-stalled",
+    "metrics": {
+      "current_lag": 12000,
+      "group_state": "STABLE",
+      "slope_per_min": -0.0
+    },
+    "priority": "HIGH",
+    "title": "Possible processing bottleneck",
+    "topic": "orders",
+    "type": "PERFORMANCE"
+  },
+  {
+    "action": "Increase consumer instances (current: 1, partitions: 3).",
+    "advice": "Lag is rising at 3.4 msg/min. CRITICAL threshold projected in ~2729.7 min (R2=1.0).",
+    "cluster_name": "alpha",
+    "group_id": "rising",
+    "id": "alpha-rising-orders-scale",
+    "metrics": {
+      "confidence": "HIGH",
+      "consumer_count": 1,
+      "eta_critical_min": 2729.7,
+      "partition_count": 3,
+      "r_squared": 1.0,
+      "slope_per_min": 3.4
+    },
+    "priority": "HIGH",
+    "title": "Scale consumer group",
+    "topic": "orders",
+    "type": "PERFORMANCE"
+  },
+  {
+    "action": "Restart the consumer for group 'stranded'.",
+    "advice": "2500 messages pending. Group state: EMPTY. These messages will not self-resolve.",
+    "cluster_name": "beta",
+    "group_id": "stranded",
+    "id": "beta-stranded-orders-stranded",
+    "metrics": {
+      "current_lag": 2500,
+      "group_state": "EMPTY"
+    },
+    "priority": "HIGH",
+    "title": "Stranded messages",
+    "topic": "orders",
+    "type": "AVAILABILITY"
+  },
+  {
+    "action": "Review partition count for topic 'orders' before adding consumers.",
+    "advice": "Lag is rising at 5.8 msg/min while all 3 partitions are already assigned to 3 consumers.",
+    "cluster_name": "beta",
+    "group_id": "capacity",
+    "id": "beta-capacity-orders-topology",
+    "metrics": {
+      "confidence": "HIGH",
+      "consumer_count": 3,
+      "partition_count": 3,
+      "slope_per_min": 5.8
+    },
+    "priority": "MEDIUM",
+    "title": "Partition count may be limiting",
+    "topic": "orders",
+    "type": "CAPACITY"
+  },
+  {
+    "action": "Check consumer liveness and session timeout configuration.",
+    "advice": "Group has remained in PREPARING_REBALANCE for 3 consecutive collection cycles.",
+    "cluster_name": "beta",
+    "group_id": "rebalance",
+    "id": "beta-rebalance-orders-rebalance",
+    "metrics": {
+      "group_state": "PREPARING_REBALANCE",
+      "rebalance_cycles": 3
+    },
+    "priority": "MEDIUM",
+    "title": "Group rebalance not completing",
+    "topic": "orders",
+    "type": "STABILITY"
+  }
+]
