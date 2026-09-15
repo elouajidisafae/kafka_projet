@@ -1,3 +1,5 @@
+from time import perf_counter
+from .timing import record_collection
 """
 Calcul du lag — supporte plusieurs clusters.
 Chaque ConsumerGroupStatus porte maintenant un cluster_name.
@@ -169,6 +171,8 @@ def compute_all_lags() -> list[ConsumerGroupStatus]:
     severity_order = {"CRITICAL": 0, "WARNING": 1, "OK": 2, "ERROR": 3}
 
     for cluster in CONFIG["clusters"]:
+        started = perf_counter()
+        first_pair = len(results)
         name    = cluster["name"]
         servers = cluster["bootstrap_servers"]
         print(f"[monitor] Cluster '{name}' → {servers}")
@@ -180,6 +184,7 @@ def compute_all_lags() -> list[ConsumerGroupStatus]:
             print(f"[monitor]   groups={groups} topics={topics}")
         except Exception as e:
             print(f"[monitor]   Connection error: {e}")
+            record_collection(name, perf_counter() - started, 0)
             continue
 
         # Récupère tous les états en un seul appel Admin (optimisé)
@@ -193,6 +198,8 @@ def compute_all_lags() -> list[ConsumerGroupStatus]:
                 result.consumer_count = consumer_count_for_topic(desc, topic)
                 results.append(result)
                 print(f"[monitor]   {name}/{group}/{topic} → lag={result.total_lag} {result.status} [{state}]")
+
+        record_collection(name, perf_counter() - started, len(results) - first_pair)
 
     results.sort(key=lambda r: (severity_order.get(r.status, 9), -r.total_lag))
     return results

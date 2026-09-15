@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Collection performance
+
+- Fetch forecast history in bulk and reuse forecasts within a collection cycle.
+- Index SQLite history, enable WAL, and prune lag and forecast history in bounded transactions at a configurable cadence.
+- Expose per-cluster phase timings and monitored-pair counts as Prometheus gauges.
+- Protect forecast and recommendation outputs with fixed regression snapshots.
+
 ### Consumer recommendations and deployment
 
 - Persist Docker history in the named data volume via `KHM_DB_PATH`.

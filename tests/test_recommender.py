@@ -108,8 +108,8 @@ def test_per_cluster_cap_never_drops_high(settings, monkeypatch):
                  group_state="EMPTY", consumer_count=0, partition_count=3)
             for c in ["dev", "prod"] for i in range(15)]
     monkeypatch.setattr(rec, "get_latest_per_group", lambda: rows)
-    monkeypatch.setattr(rec, "forecast_lag", lambda *a: {})
-    monkeypatch.setattr(rec, "get_group_state_streak", lambda *a: None)
+    monkeypatch.setattr(rec, "forecasts_for_request", lambda: {})
+    monkeypatch.setattr(rec, "get_group_state_streaks", lambda: {})
     result = rec.get_recommendations()
     assert len(result) == 30
     assert all(r["priority"] == "HIGH" for r in result)
@@ -121,8 +121,9 @@ def test_medium_cap_is_per_cluster(settings, monkeypatch):
                  group_state="STABLE", consumer_count=3, partition_count=3)
             for c in ["prod", "dev"] for i in reversed(range(15))]
     monkeypatch.setattr(rec, "get_latest_per_group", lambda: rows)
-    monkeypatch.setattr(rec, "forecast_lag", lambda *a: {"trend": "INCREASING", "confidence": "HIGH"})
-    monkeypatch.setattr(rec, "get_group_state_streak", lambda *a: None)
+    monkeypatch.setattr(rec, "forecasts_for_request", lambda: {
+        (r["cluster_name"], r["group_id"], r["topic"]): {"trend": "INCREASING", "confidence": "HIGH"} for r in rows})
+    monkeypatch.setattr(rec, "get_group_state_streaks", lambda: {})
     result = rec.get_recommendations()
     assert len(result) == 20
     assert [r["group_id"] for r in result[:10]] == [f"g{i:02}" for i in range(10)]

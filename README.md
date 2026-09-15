@@ -139,3 +139,19 @@ kafka-health-monitor/
 
 ## 📝 License
 Distributed under the MIT License.
+### Collection performance and retention
+
+Forecasts use one bulk history query and one fit per pair per collection cycle. Requests reuse a process-local, lock-protected cache for up to `monitor.refresh_interval` seconds; changed configuration invalidates it. Single-pair `forecast_lag()` calls still fetch fresh history and accept a window override. Forecast API requests retain their existing persistence behavior.
+
+SQLite uses WAL mode and `synchronous=NORMAL`, with indexed history lookup and retention. The database and its `-wal` and `-shm` sidecars must share the mounted data directory. NORMAL preserves database consistency but the newest transactions can be lost after power failure.
+
+```yaml
+retention:
+  days: 7
+  prune_every_cycles: 60
+  prune_batch_size: 5000
+```
+
+Retention applies to both lag and forecast history, in transactions deleting at most `prune_batch_size` rows. Each collection process prunes every `prune_every_cycles` cycles. `retention.days` takes precedence over the legacy `monitor.history_retention_days`; when omitted, the legacy setting supplies the default.
+
+`/metrics` exposes the gauges `khm_collection_duration_seconds`, `khm_forecast_duration_seconds`, and `khm_monitored_pairs`, labeled by cluster. Collection duration measures Kafka collection and state tracking for that cluster; forecast duration measures bulk reads and fitting, with shared query time apportioned by pair count. Neither includes forecast persistence or retention. Pair count comes from the latest stored snapshot. Phase durations and pair counts are also logged at DEBUG level by `core.timing`.

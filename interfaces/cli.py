@@ -12,7 +12,7 @@ from rich import box
 from datetime import datetime, timezone
 
 from core.lag_calculator import compute_all_lags, ConsumerGroupStatus
-from core.db import init_db, save_lag, get_lag_history, purge_old_records
+from core.db import init_db, save_lag, get_lag_history, maybe_purge_old_records
 from core.config_loader import CONFIG
 
 console = Console()
@@ -64,7 +64,7 @@ def _collect_and_save() -> list[ConsumerGroupStatus]:
             save_lag(r.cluster_name, r.group_id, r.topic, r.total_lag, r.status,
                      r.group_state, partition_count=r.partition_count,
                      partitions_counted=r.partitions_counted, consumer_count=r.consumer_count)
-    purge_old_records()
+    maybe_purge_old_records()
     from core.forecasting import forecast_all
     forecast_all()
     return results

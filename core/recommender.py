@@ -2,8 +2,8 @@
 from collections import Counter
 
 from .config_loader import CONFIG
-from .forecasting import forecast_lag
-from .db import get_latest_per_group, get_group_state_streak
+from .forecasting import forecasts_for_request
+from .db import get_latest_per_group, get_group_state_streaks
 
 PRIORITY_ORDER = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
 RULE_ORDER = {name: i for i, name in enumerate(("scale", "topology", "stranded", "stalled", "rebalance"))}
@@ -17,10 +17,12 @@ def _cap_pair(recommendations: list[dict]) -> list[dict]:
 
 def get_recommendations() -> list[dict]:
     recommendations = []
+    forecasts = forecasts_for_request()
+    streaks = get_group_state_streaks()
     for row in get_latest_per_group():
         cluster, group, topic = row["cluster_name"], row["group_id"], row["topic"]
-        forecast = forecast_lag(cluster, group, topic)
-        streak = get_group_state_streak(cluster, group)
+        forecast = forecasts.get((cluster, group, topic), {})
+        streak = streaks.get((cluster, group))
         cycles = streak["streak_count"] if streak and streak["state"] == row["group_state"] else 0
         recommendations.extend(analyze_row(
             cluster, group, topic, row["total_lag"], row["group_state"],

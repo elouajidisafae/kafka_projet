@@ -14,6 +14,7 @@ DEFAULTS = {
         {"name": "default", "bootstrap_servers": "localhost:9092", "color": "teal"}
     ],
     "monitor": {"refresh_interval": 5, "history_retention_days": 7},
+    "retention": {"days": 7, "prune_every_cycles": 60, "prune_batch_size": 5000},
     "alerts": {"warning_threshold": 1000, "critical_threshold": 10000},
     "forecast": {
         "persist_every_cycle": True,
@@ -43,6 +44,8 @@ def load_config() -> dict:
                 config[section].update(values)
             else:
                 config[section] = values
+    if CONFIG_PATH.exists() and "days" not in (user_config.get("retention") or {}):
+        config["retention"]["days"] = config["monitor"]["history_retention_days"]
     config["run_id"] = os.getenv("KHM_RUN_ID")
     return config
 

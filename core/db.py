@@ -3,6 +3,7 @@ Persistance SQLite — historique du lag avec support multi-cluster.
 """
 import sqlite3
 import os
+from threading import Lock
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -24,9 +25,19 @@ def parse_iso_utc(ts: str) -> datetime:
     return dt
 
 
+class _Connection(sqlite3.Connection):
+    def __exit__(self, *args):
+        try:
+            return super().__exit__(*args)
+        finally:
+            self.close()
+
+
 def _get_connection() -> sqlite3.Connection:
     Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), factory=_Connection)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -99,6 +110,9 @@ def init_db():
                 PRIMARY KEY (cluster_name, group_id)
             )
         """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_lag_history_lookup ON lag_history (cluster_name, group_id, topic, recorded_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_lag_history_recorded ON lag_history (recorded_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_forecast_recorded ON forecast_log (recorded_at)")
         for stmt in [
             "ALTER TABLE lag_history ADD COLUMN log_end_offset INTEGER",
             "ALTER TABLE lag_history ADD COLUMN committed_offset INTEGER",
@@ -147,6 +161,30 @@ def get_lag_history(cluster_name: str, group_id: str, topic: str, last_hours: in
     return [dict(row) for row in rows]
 
 
+def get_lag_history_bulk(cluster_name: str | None = None, last_hours: float = 1.0) -> dict:
+    """Fetch one history window, preserving timestamp order within each pair."""
+    since = (datetime.now(timezone.utc) - timedelta(hours=last_hours)).isoformat()
+    sql = "SELECT * FROM lag_history WHERE recorded_at>=?"
+    params = [since]
+    if cluster_name is not None:
+        sql += " AND cluster_name=?"
+        params.append(cluster_name)
+    sql += " ORDER BY cluster_name, group_id, topic, recorded_at ASC"
+    with _get_connection() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    grouped = {}
+    for row in rows:
+        key = (row["cluster_name"], row["group_id"], row["topic"])
+        grouped.setdefault(key, []).append(dict(row))
+    return grouped
+
+
+def get_group_state_streaks() -> dict:
+    with _get_connection() as conn:
+        rows = conn.execute("SELECT * FROM group_state_streak").fetchall()
+    return {(row["cluster_name"], row["group_id"]): dict(row) for row in rows}
+
+
 def get_latest_per_group(cluster_name: str = None) -> list[dict]:
     with _get_connection() as conn:
         if cluster_name:
@@ -172,15 +210,42 @@ def get_latest_per_group(cluster_name: str = None) -> list[dict]:
 
 
 def purge_old_records():
-    retention = CONFIG["monitor"]["history_retention_days"]
+    settings = CONFIG.get("retention", {})
+    retention = settings.get("days", CONFIG["monitor"]["history_retention_days"])
+    batch_size = max(1, int(settings.get("prune_batch_size", 5000)))
     cutoff = (datetime.now(timezone.utc) - timedelta(days=retention)).isoformat()
-    with _get_connection() as conn:
-        deleted = conn.execute(
-            "DELETE FROM lag_history WHERE recorded_at < ?",
-            (cutoff,)
-        ).rowcount
-        conn.commit()
-    return deleted
+    deleted_lag = 0
+    for table in ("lag_history", "forecast_log"):
+        while True:
+            with _get_connection() as conn:
+                deleted = conn.execute(
+                    f"DELETE FROM {table} WHERE id IN (SELECT id FROM {table} "
+                    "WHERE recorded_at < ? ORDER BY recorded_at LIMIT ?)",
+                    (cutoff, batch_size)).rowcount
+                conn.commit()
+            if table == "lag_history":
+                deleted_lag += deleted
+            if deleted < batch_size:
+                break
+    return deleted_lag
+
+
+_prune_lock = Lock()
+_prune_cycles = {}
+
+
+def maybe_purge_old_records():
+    """Prune on the configured cycle cadence, with bounded transactions."""
+    with _prune_lock:
+        key = str(DB_PATH)
+        cycle = _prune_cycles.get(key, 0) + 1
+        every = max(1, int(CONFIG.get("retention", {}).get("prune_every_cycles", 60)))
+        if cycle < every:
+            _prune_cycles[key] = cycle
+            return 0
+        deleted = purge_old_records()
+        _prune_cycles[key] = 0
+        return deleted
 
 
 def save_audit_log(event_type: str, severity: str, message: str, details: str = None):

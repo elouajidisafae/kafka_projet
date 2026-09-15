@@ -1,8 +1,12 @@
 """
 Predictive Lag Forecasting — régression linéaire sur l'historique SQLite.
 """
+from copy import deepcopy
+from threading import RLock
+from time import monotonic, perf_counter
+import json
 import numpy as np
-from .db import get_lag_history, save_forecast, parse_iso_utc
+from .db import get_lag_history, get_lag_history_bulk, save_forecast, parse_iso_utc
 from .config_loader import CONFIG
 
 MIN_POINTS = 5
@@ -20,11 +24,16 @@ def forecast_lag(
     topic: str,
     window_hours: float | None = None,
 ) -> dict:
-    warn = CONFIG["alerts"]["warning_threshold"]
-    crit = CONFIG["alerts"]["critical_threshold"]
     if window_hours is None:
         window_hours = CONFIG.get("forecast", {}).get("window_hours", FORECAST_WINDOW_HOURS)
     records = get_lag_history(cluster_name, group_id, topic, last_hours=window_hours)
+    return fit_forecast(records, cluster_name, group_id, topic)
+
+
+def fit_forecast(records: list[dict], cluster_name: str, group_id: str, topic: str) -> dict:
+    """Fit the configured forecast without database or other I/O."""
+    warn = CONFIG["alerts"]["warning_threshold"]
+    crit = CONFIG["alerts"]["critical_threshold"]
 
     if records:
         timestamps = np.array([_parse_timestamp(r["recorded_at"]) for r in records])
@@ -113,23 +122,7 @@ def forecast_lag(
     return result
 
 
-def forecast_all() -> list[dict]:
-    from .db import get_latest_per_group
-    rows = get_latest_per_group()
-
-    results = []
-    seen = set()
-    for row in rows:
-        key = (row["cluster_name"], row["group_id"], row["topic"])
-        if key in seen:
-            continue
-        seen.add(key)
-
-        forecast = forecast_lag(row["cluster_name"], row["group_id"], row["topic"])
-        if CONFIG.get("forecast", {}).get("persist_every_cycle", False):
-            save_forecast(forecast)
-        results.append(forecast)
-
+def _sort_forecasts(results):
     def sort_key(f):
         if not f.get("enough_data"):
             return (3, 0)
@@ -141,5 +134,89 @@ def forecast_all() -> list[dict]:
         else:
             return (2, 0)
 
-    results.sort(key=sort_key)
-    return results
+    return sorted(results, key=sort_key)
+
+
+_cache_lock = RLock()
+_cache = None
+_cache_time = 0.0
+_cache_signature = None
+
+
+def _signature():
+    from . import db
+    return (str(db.DB_PATH), json.dumps(CONFIG, sort_keys=True))
+
+
+def _compute(cluster_name=None):
+    from .db import get_latest_per_group
+    from .timing import record_forecast
+    started = perf_counter()
+    rows = get_latest_per_group(cluster_name)
+    history = get_lag_history_bulk(cluster_name, CONFIG.get("forecast", {}).get("window_hours", 1))
+    fetch_duration = perf_counter() - started
+    forecasts = {}
+    durations = {}
+    counts = {}
+    for row in rows:
+        key = (row["cluster_name"], row["group_id"], row["topic"])
+        if key in forecasts:
+            continue
+        started = perf_counter()
+        forecasts[key] = fit_forecast(history.get(key, []), *key)
+        durations[key[0]] = durations.get(key[0], 0.0) + perf_counter() - started
+        counts[key[0]] = counts.get(key[0], 0) + 1
+    for cluster in CONFIG.get("clusters", []):
+        if cluster_name is None or cluster["name"] == cluster_name:
+            counts.setdefault(cluster["name"], 0)
+            durations.setdefault(cluster["name"], 0.0)
+    for cluster, count in counts.items():
+        # Shared bulk-read time is apportioned by pair count, not counted twice.
+        record_forecast(cluster, durations[cluster] + fetch_duration * count / max(1, len(forecasts)), count)
+    return forecasts
+
+
+def compute_cycle_forecasts(cluster_name: str | None = None) -> dict:
+    """Publish a complete cycle atomically; scoped computations never replace it."""
+    global _cache, _cache_time, _cache_signature
+    with _cache_lock:
+        values = _compute(cluster_name)
+        if cluster_name is None:
+            _cache = values
+            _cache_time = monotonic()
+            _cache_signature = _signature()
+        return deepcopy(values)
+
+
+def get_cached_forecasts(max_age_seconds: float | None = None) -> dict | None:
+    with _cache_lock:
+        age = CONFIG.get("monitor", {}).get("refresh_interval", 5) if max_age_seconds is None else max_age_seconds
+        if _cache is None or _cache_signature != _signature() or monotonic() - _cache_time >= age:
+            return None
+        return deepcopy(_cache)
+
+
+def forecasts_for_request() -> dict:
+    # Single-flight cache misses: another request cannot fit the same cycle concurrently.
+    with _cache_lock:
+        values = get_cached_forecasts()
+        return compute_cycle_forecasts() if values is None else values
+
+
+def _persist(values):
+    if CONFIG.get("forecast", {}).get("persist_every_cycle", False):
+        for forecast in values:
+            save_forecast(forecast)
+
+
+def forecast_all() -> list[dict]:
+    values = compute_cycle_forecasts()
+    _persist(values.values())
+    return _sort_forecasts(values.values())
+
+
+def cached_forecast_all() -> list[dict]:
+    values = forecasts_for_request()
+    # Preserve forecast API persistence behavior without another fit.
+    _persist(values.values())
+    return _sort_forecasts(values.values())

@@ -14,8 +14,8 @@ from fastapi.templating import Jinja2Templates
 import uvicorn
 
 from core.lag_calculator import compute_all_lags
-from core.forecasting import forecast_all
-from core.db import init_db, save_lag, get_lag_history, get_latest_per_group, purge_old_records
+from core.forecasting import forecast_all, cached_forecast_all
+from core.db import init_db, save_lag, get_lag_history, get_latest_per_group, maybe_purge_old_records
 from core.config_loader import CONFIG
 from core.stats import get_global_stats
 from core.health_score import compute_health_score
@@ -63,7 +63,7 @@ def _background_collector():
                             )
                         _last_statuses[key] = r.status
 
-            purge_old_records()
+            maybe_purge_old_records()
             forecast_all()
             # Calcul du Health Score global
             global _last_health_score
@@ -105,7 +105,7 @@ def api_forecast():
     Retourne les prédictions de lag pour tous les groupes/topics.
     Basé sur une régression linéaire sur l'historique SQLite.
     """
-    results = forecast_all()
+    results = cached_forecast_all()
     return {"forecasts": results}
 
 @app.get("/api/recommendations")
@@ -230,6 +230,8 @@ def metrics():
     for row in rows:
         label = f'cluster="{row["cluster_name"]}",group="{row["group_id"]}",topic="{row["topic"]}"'
         lines.append(f"kafka_consumer_status{{{label}}} {status_map.get(row['status'], -1)}")
+    from core.timing import prometheus_lines
+    lines.extend(prometheus_lines())
     return "\n".join(lines)
 
 

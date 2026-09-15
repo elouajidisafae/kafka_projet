@@ -28,3 +28,8 @@ recommendations:
 web:
   host: 0.0.0.0
   port: 8080
+
+retention:
+  days: 7
+  prune_every_cycles: 60
+  prune_batch_size: 5000
