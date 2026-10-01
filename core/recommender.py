@@ -15,8 +15,9 @@ def _cap_pair(recommendations: list[dict]) -> list[dict]:
     return recommendations[:CONFIG.get("recommendations", {}).get("max_per_pair", 2)]
 
 
-def get_recommendations() -> list[dict]:
+def get_recommendations(*, persist: bool = False) -> list[dict]:
     recommendations = []
+    all_matches = []
     forecasts = forecasts_for_request()
     streaks = get_group_state_streaks()
     for row in get_latest_per_group():
@@ -24,10 +25,12 @@ def get_recommendations() -> list[dict]:
         forecast = forecasts.get((cluster, group, topic), {})
         streak = streaks.get((cluster, group))
         cycles = streak["streak_count"] if streak and streak["state"] == row["group_state"] else 0
-        recommendations.extend(analyze_row(
+        matches = analyze_row(
             cluster, group, topic, row["total_lag"], row["group_state"],
             forecast.get("trend"), forecast, consumer_count=row.get("consumer_count"),
-            partition_count=row.get("partition_count"), rebalance_cycles=cycles))
+            partition_count=row.get("partition_count"), rebalance_cycles=cycles, apply_cap=False)
+        all_matches.extend(matches)
+        recommendations.extend(_cap_pair(matches))
 
     recommendations.sort(key=lambda r: (PRIORITY_ORDER[r["priority"]], r["cluster_name"],
                                         r["group_id"], r["topic"]))
@@ -39,11 +42,14 @@ def get_recommendations() -> list[dict]:
         if rec["priority"] == "HIGH" or counts[cluster] < cap:
             result.append(rec)
             counts[cluster] += 1
+    if persist:
+        from .db import save_recommendations
+        save_recommendations(all_matches, {r["id"] for r in result})
     return result
 
 
 def analyze_row(cluster, group_id, topic, current_lag, state, trend, forecast,
-                *, consumer_count=None, partition_count=None, rebalance_cycles=0) -> list[dict]:
+                *, consumer_count=None, partition_count=None, rebalance_cycles=0, apply_cap=True) -> list[dict]:
     """Evaluate every rule, retaining the highest-priority matches for this pair."""
     settings = CONFIG.get("recommendations", {})
     confidence = forecast.get("confidence")
@@ -92,4 +98,4 @@ def analyze_row(cluster, group_id, topic, current_lag, state, trend, forecast,
         emit("rebalance", "STABILITY", "MEDIUM", "Group rebalance not completing",
              f"Group has remained in {state} for {rebalance_cycles} consecutive collection cycles.",
              "Check consumer liveness and session timeout configuration.", ("group_state", "rebalance_cycles"))
-    return _cap_pair(result)
+    return _cap_pair(result) if apply_cap else result

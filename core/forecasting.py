@@ -141,6 +141,7 @@ _cache_lock = RLock()
 _cache = None
 _cache_time = 0.0
 _cache_signature = None
+_cache_inputs = {}
 
 
 def _signature():
@@ -156,6 +157,7 @@ def _compute(cluster_name=None):
     history = get_lag_history_bulk(cluster_name, CONFIG.get("forecast", {}).get("window_hours", 1))
     fetch_duration = perf_counter() - started
     forecasts = {}
+    inputs = {}
     durations = {}
     counts = {}
     for row in rows:
@@ -163,7 +165,9 @@ def _compute(cluster_name=None):
         if key in forecasts:
             continue
         started = perf_counter()
-        forecasts[key] = fit_forecast(history.get(key, []), *key)
+        records = history.get(key, [])
+        forecasts[key] = fit_forecast(records, *key)
+        inputs[key] = [r["id"] for r in records] if CONFIG.get("forecast", {}).get("record_inputs", False) else None
         durations[key[0]] = durations.get(key[0], 0.0) + perf_counter() - started
         counts[key[0]] = counts.get(key[0], 0) + 1
     for cluster in CONFIG.get("clusters", []):
@@ -173,16 +177,17 @@ def _compute(cluster_name=None):
     for cluster, count in counts.items():
         # Shared bulk-read time is apportioned by pair count, not counted twice.
         record_forecast(cluster, durations[cluster] + fetch_duration * count / max(1, len(forecasts)), count)
-    return forecasts
+    return forecasts, inputs
 
 
 def compute_cycle_forecasts(cluster_name: str | None = None) -> dict:
     """Publish a complete cycle atomically; scoped computations never replace it."""
-    global _cache, _cache_time, _cache_signature
+    global _cache, _cache_time, _cache_signature, _cache_inputs
     with _cache_lock:
-        values = _compute(cluster_name)
+        values, inputs = _compute(cluster_name)
         if cluster_name is None:
             _cache = values
+            _cache_inputs = inputs
             _cache_time = monotonic()
             _cache_signature = _signature()
         return deepcopy(values)
@@ -206,17 +211,23 @@ def forecasts_for_request() -> dict:
 def _persist(values):
     if CONFIG.get("forecast", {}).get("persist_every_cycle", False):
         for forecast in values:
-            save_forecast(forecast)
+            key = (forecast.get("cluster_name"), forecast.get("group_id"), forecast.get("topic"))
+            ids = _cache_inputs.get(key)
+            if ids is None:
+                save_forecast(forecast)
+            else:
+                save_forecast(forecast, input_ids=ids)
 
 
 def forecast_all() -> list[dict]:
-    values = compute_cycle_forecasts()
-    _persist(values.values())
-    return _sort_forecasts(values.values())
+    with _cache_lock:
+        values = compute_cycle_forecasts()
+        _persist(values.values())
+        return _sort_forecasts(values.values())
 
 
 def cached_forecast_all() -> list[dict]:
-    values = forecasts_for_request()
-    # Preserve forecast API persistence behavior without another fit.
-    _persist(values.values())
-    return _sort_forecasts(values.values())
+    with _cache_lock:
+        values = forecasts_for_request()
+        _persist(values.values())
+        return _sort_forecasts(values.values())

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from confluent_kafka import Consumer, KafkaException
 from confluent_kafka.admin import AdminClient, NewTopic
 from .config_loader import CONFIG
+from .client_pool import client
 
 
 def _make_admin() -> AdminClient:
@@ -115,7 +116,7 @@ def get_committed_offsets(group_id: str, topic: str, bootstrap_servers: str) -> 
     from confluent_kafka import TopicPartition
     from confluent_kafka.admin import AdminClient
 
-    admin = AdminClient({"bootstrap.servers": bootstrap_servers})
+    admin = client(AdminClient, {"bootstrap.servers": bootstrap_servers}, locals().get("cluster_name", ""))
 
     try:
         # Récupère les partitions du topic
@@ -179,12 +180,12 @@ def describe_groups(cluster_name: str, *, bootstrap_servers: str | None = None,
         if bootstrap_servers is None:
             bootstrap_servers = next(c["bootstrap_servers"] for c in CONFIG["clusters"]
                                      if c["name"] == cluster_name)
-        admin = AdminClient({"bootstrap.servers": bootstrap_servers})
+        admin = client(AdminClient, {"bootstrap.servers": bootstrap_servers}, locals().get("cluster_name", ""))
         if group_ids is None:
             excluded = set(CONFIG.get("exclude_groups", [])) | {
                 "_khm_probe", "_khm_probe_leo", "_kafka_health_monitor_probe"}
             group_ids = sorted(g.group_id for g in admin.list_consumer_groups().result().valid
-                               if g.group_id not in excluded)
+                               if g.group_id not in excluded and (not CONFIG.get("include_groups") or g.group_id in CONFIG["include_groups"]))
         descriptions = {gid: GroupDescription(gid, "UNKNOWN", [], False) for gid in group_ids}
         if not group_ids:
             return descriptions

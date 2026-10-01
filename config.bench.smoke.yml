@@ -1,0 +1,28 @@
+clusters:
+  - name: bench
+    bootstrap_servers: kafka:29092
+    color: teal
+alerts:
+  warning_threshold: 100
+  critical_threshold: 1000
+monitor:
+  refresh_interval: 5
+  group_topic_match: true
+  history_retention_days: 30
+retention:
+  days: 30
+  prune_every_cycles: 60
+  prune_batch_size: 5000
+forecast:
+  persist_every_cycle: true
+  record_inputs: true
+  trend_deadband_msgs_per_sec: 0.05
+  window_hours: 1
+recommendations:
+  max_per_cluster: 10
+  max_per_pair: 2
+  rebalance_cycles_threshold: 3
+  confidence_gate: [HIGH, MEDIUM]
+web:
+  host: 0.0.0.0
+  port: 8080

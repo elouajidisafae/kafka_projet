@@ -32,7 +32,7 @@ _last_statuses = {} # Track status per group to log transitions
 def _background_collector():
     interval = CONFIG["monitor"]["refresh_interval"]
     global _last_statuses
-    while True:
+    def cycle():
         try:
             results = compute_all_lags()
             for r in results:
@@ -65,13 +65,17 @@ def _background_collector():
 
             maybe_purge_old_records()
             forecast_all()
+            get_recommendations(persist=True)
             # Calcul du Health Score global
             global _last_health_score
             _last_health_score = compute_health_score(results)
             print(f"[health] Global score: {_last_health_score['score']}/100 ({_last_health_score['grade']})")
         except Exception as e:
             print(f"[collector] Error: {e}")
-        time.sleep(interval)
+    from core.scheduling import run_cycles
+    from core.timing import record_overrun
+    run_cycles(cycle, interval, on_overrun=lambda elapsed: [record_overrun(c["name"]) for c in CONFIG["clusters"]])
+
 
 
 @app.get("/api/status")

@@ -17,3 +17,7 @@ docs/batch*-evidence
 *.egg-info
 build
 *.log
+
+# Local benchmark captures and derived results
+bench/data/
+bench/results/

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Controlled forecast evaluation
+
+- Record recommendation matches before display caps, including display status and run tags.
+- Reuse Kafka clients and schedule non-overlapping collection cycles with overrun counters.
+- Add an isolated workload stack, checksummed dataset export and exact-input offline replay.
+- Score forecast errors, advice lead time and negative controls per repetition.
+
+
 ### Collection performance
 
 - Fetch forecast history in bulk and reuse forecasts within a collection cycle.

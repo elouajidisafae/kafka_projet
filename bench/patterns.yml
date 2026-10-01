@@ -1,0 +1,10 @@
+baseline:
+  creeping: {produce: 25.6, consume: 20, target_min: 25, target_max: 35}
+  burst: {produce: 21, consume: 20, burst_at: 900, burst_seconds: 60, burst_rate: 157, target_min: 25, target_max: 35}
+  sawtooth: {produce: 40, consume: 42, pause_seconds: 30, period_seconds: 180, target_min: 25, target_max: 40}
+  flat_high: {produce: 20, consume: 20, fill_seconds: 60, fill_rate: 120}
+smoke:
+  creeping: {produce: 27, consume: 20, target_min: 1, target_max: 4}
+  burst: {produce: 22, consume: 20, burst_at: 60, burst_seconds: 15, burst_rate: 65, target_min: 1, target_max: 4}
+  sawtooth: {produce: 40, consume: 42, pause_seconds: 10, period_seconds: 30, target_min: 1, target_max: 4}
+  flat_high: {produce: 20, consume: 20, fill_seconds: 10, fill_rate: 80}

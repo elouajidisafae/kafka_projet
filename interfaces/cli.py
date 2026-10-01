@@ -67,6 +67,8 @@ def _collect_and_save() -> list[ConsumerGroupStatus]:
     maybe_purge_old_records()
     from core.forecasting import forecast_all
     forecast_all()
+    from core.recommender import get_recommendations
+    get_recommendations(persist=True)
     return results
 
 
@@ -113,11 +115,17 @@ def watch(interval: int, cluster: str):
     try:
         with Live(console=console, refresh_per_second=1, screen=False) as live:
             while True:
+                started = time.monotonic()
                 results = _collect_and_save()
                 if cluster:
                     results = [r for r in results if r.cluster_name == cluster]
                 live.update(_build_table(results, cluster_filter=cluster))
-                time.sleep(interval)
+                elapsed = time.monotonic() - started
+                if elapsed > interval:
+                    from core.timing import record_overrun
+                    for c in CONFIG["clusters"]:
+                        record_overrun(c["name"])
+                time.sleep(max(0, interval - elapsed))
     except KeyboardInterrupt:
         console.print("\n[dim]Surveillance arrêtée.[/dim]")
 

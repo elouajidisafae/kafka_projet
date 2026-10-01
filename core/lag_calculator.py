@@ -11,6 +11,7 @@ from confluent_kafka.admin import AdminClient
 from core.kafka_client import describe_groups, consumer_count_for_topic
 from core.db import update_group_state_streak
 from .config_loader import CONFIG
+from .client_pool import client
 
 
 @dataclass
@@ -55,11 +56,11 @@ def _compute_status(total_lag: int) -> str:
 
 
 def _make_admin(bootstrap_servers: str) -> AdminClient:
-    return AdminClient({"bootstrap.servers": bootstrap_servers})
+    return client(AdminClient, {"bootstrap.servers": bootstrap_servers})
 
 
 def _make_consumer(bootstrap_servers: str, group_id: str = "_khm_probe") -> Consumer:
-    return Consumer({
+    return client(Consumer, {
         "bootstrap.servers": bootstrap_servers,
         "group.id": group_id,
         "enable.auto.commit": False,
@@ -98,7 +99,7 @@ def compute_lag_for_group(
         from confluent_kafka import TopicPartition
 
         # Étape 1 : LEO via consumer probe
-        probe = _make_consumer(bootstrap_servers, "_khm_probe_leo")
+        probe = _make_consumer(bootstrap_servers, "_khm_probe_leo_" + cluster_name)
         try:
             metadata = probe.list_topics(topic, timeout=10)
             partitions = metadata.topics[topic].partitions
@@ -109,17 +110,17 @@ def compute_lag_for_group(
                 _, high = probe.get_watermark_offsets(tp, timeout=5)
                 end_offsets[tp.partition] = high
         finally:
-            probe.close()
+            pass  # Read-only client retained in this collection thread.
 
         # Étape 2 : Committed offsets via un consumer avec le VRAI group_id
         # On crée un consumer avec le group_id exact du groupe à monitorer
         # enable.auto.commit=False pour ne pas perturber les offsets
-        committed_consumer = Consumer({
+        committed_consumer = client(Consumer, {
             "bootstrap.servers": bootstrap_servers,
             "group.id": group_id,
             "enable.auto.commit": False,
             "auto.offset.reset": "latest",
-        })
+        }, cluster_name)
         try:
             tps = [TopicPartition(topic, pid) for pid in end_offsets.keys()]
             committed = committed_consumer.committed(tps, timeout=10)
@@ -129,7 +130,7 @@ def compute_lag_for_group(
                 if tp.offset >= 0
             }
         finally:
-            committed_consumer.close()
+            pass  # Reused for this group; never subscribes or commits.
 
         # Étape 3 : Calcul lag = LEO - committed
         parts = sorted([
@@ -193,6 +194,8 @@ def compute_all_lags() -> list[ConsumerGroupStatus]:
             state = desc.state
             update_group_state_streak(name, group, state)
             for topic in topics:
+                if CONFIG.get("monitor", {}).get("group_topic_match", False) and topic != group:
+                    continue
                 result = compute_lag_for_group(name, servers, group, topic)
                 result.group_state = state
                 result.consumer_count = consumer_count_for_topic(desc, topic)

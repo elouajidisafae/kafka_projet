@@ -155,3 +155,9 @@ retention:
 Retention applies to both lag and forecast history, in transactions deleting at most `prune_batch_size` rows. Each collection process prunes every `prune_every_cycles` cycles. `retention.days` takes precedence over the legacy `monitor.history_retention_days`; when omitted, the legacy setting supplies the default.
 
 `/metrics` exposes the gauges `khm_collection_duration_seconds`, `khm_forecast_duration_seconds`, and `khm_monitored_pairs`, labeled by cluster. Collection duration measures Kafka collection and state tracking for that cluster; forecast duration measures bulk reads and fitting, with shared query time apportioned by pair count. Neither includes forecast persistence or retention. Pair count comes from the latest stored snapshot. Phase durations and pair counts are also logged at DEBUG level by `core.timing`.
+
+### Controlled recordings and offline evaluation
+
+See [the recording guide](bench/README.md) for the isolated benchmark stack, seeded workloads, immutable dataset export, exact-input replay and per-repetition evaluation. Recommendation matches are persisted before display caps in `recommendation_log`, with a `displayed` flag and run identifier; they follow the configured retention policy.
+
+Collection cycles run serially at the configured period. An overrun starts the next cycle immediately and increments `khm_collection_overruns_total{cluster}` for participating clusters. Kafka clients are reused within collection threads. Forecast and recommendation output dictionaries are unchanged.

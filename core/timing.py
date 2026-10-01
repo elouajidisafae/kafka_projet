@@ -30,4 +30,14 @@ def prometheus_lines():
         for cluster, metrics in sorted(values.items()):
             label = cluster.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
             lines.append(f'{name}{{cluster="{label}"}} {metrics.get(field, 0)}')
+    lines.append("# TYPE khm_collection_overruns_total counter")
+    for cluster, metrics in sorted(values.items()):
+        import json
+        lines.append(f'khm_collection_overruns_total{{cluster={json.dumps(cluster)}}} {metrics.get("overruns", 0)}')
     return lines
+
+
+def record_overrun(cluster):
+    with _lock:
+        metrics = _values.setdefault(cluster, {})
+        metrics["overruns"] = metrics.get("overruns", 0) + 1

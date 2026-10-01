@@ -3,6 +3,7 @@ Persistance SQLite — historique du lag avec support multi-cluster.
 """
 import sqlite3
 import os
+import json
 from threading import Lock
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -113,7 +114,15 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_lag_history_lookup ON lag_history (cluster_name, group_id, topic, recorded_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_lag_history_recorded ON lag_history (recorded_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_forecast_recorded ON forecast_log (recorded_at)")
+        conn.execute("""CREATE TABLE IF NOT EXISTS recommendation_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, cluster_name TEXT NOT NULL,
+            group_id TEXT NOT NULL, topic TEXT NOT NULL, rule TEXT NOT NULL,
+            type TEXT NOT NULL, priority TEXT NOT NULL, displayed INTEGER NOT NULL,
+            metrics_json TEXT NOT NULL, run_id TEXT, recorded_at TEXT NOT NULL)""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_reco_lookup ON recommendation_log (cluster_name, group_id, topic, recorded_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_reco_recorded ON recommendation_log (recorded_at)")
         for stmt in [
+            "ALTER TABLE forecast_log ADD COLUMN input_ids_json TEXT",
             "ALTER TABLE lag_history ADD COLUMN log_end_offset INTEGER",
             "ALTER TABLE lag_history ADD COLUMN committed_offset INTEGER",
             "ALTER TABLE lag_history ADD COLUMN partition_count INTEGER",
@@ -206,7 +215,8 @@ def get_latest_per_group(cluster_name: str = None) -> list[dict]:
                    GROUP BY cluster_name, group_id, topic
                    ORDER BY cluster_name, total_lag DESC"""
             ).fetchall()
-    return [dict(row) for row in rows]
+    allowed = CONFIG.get("include_groups")
+    return [dict(row) for row in rows if not allowed or row["group_id"] in allowed]
 
 
 def purge_old_records():
@@ -215,7 +225,7 @@ def purge_old_records():
     batch_size = max(1, int(settings.get("prune_batch_size", 5000)))
     cutoff = (datetime.now(timezone.utc) - timedelta(days=retention)).isoformat()
     deleted_lag = 0
-    for table in ("lag_history", "forecast_log"):
+    for table in ("lag_history", "forecast_log", "recommendation_log"):
         while True:
             with _get_connection() as conn:
                 deleted = conn.execute(
@@ -268,7 +278,7 @@ def get_audit_logs(limit: int = 100) -> list[dict]:
     return [dict(row) for row in rows]
 
 
-def save_forecast(forecast: dict, run_id: str | None = None) -> None:
+def save_forecast(forecast: dict, run_id: str | None = None, *, input_ids=None) -> None:
     """Persist one forecast_lag() result. No-op when enough_data is False."""
     if not forecast.get("enough_data"):
         return
@@ -285,8 +295,8 @@ def save_forecast(forecast: dict, run_id: str | None = None) -> None:
         "current_lag": int(forecast["current_lag"]),
         "n_points": int(forecast["n_points"]),
         "window_seconds": int(forecast["window_seconds"]),
-        "eta_warning_sec": forecast.get("eta_warning_sec"),
-        "eta_critical_sec": forecast.get("eta_critical_sec"),
+        "eta_warning_sec": _sqlite_integer(forecast.get("eta_warning_sec")),
+        "eta_critical_sec": _sqlite_integer(forecast.get("eta_critical_sec")),
         "predicted_lag_5min": forecast.get("predicted_lag_5min"),
         "predicted_lag_15min": forecast.get("predicted_lag_15min"),
         "warning_threshold": int(forecast["warning_threshold"]),
@@ -295,7 +305,7 @@ def save_forecast(forecast: dict, run_id: str | None = None) -> None:
         "recorded_at": utc_now_iso(),
     }
     with _get_connection() as conn:
-        conn.execute(
+        cursor = conn.execute(
             """
             INSERT INTO forecast_log (
                 cluster_name, group_id, topic, slope, intercept, r_squared, confidence, trend,
@@ -312,6 +322,9 @@ def save_forecast(forecast: dict, run_id: str | None = None) -> None:
                 payload["recorded_at"],
             ),
         )
+        if input_ids is not None:
+            conn.execute("UPDATE forecast_log SET input_ids_json=? WHERE id=?",
+                         (json.dumps(input_ids), cursor.lastrowid))
         conn.commit()
 
 
@@ -333,3 +346,22 @@ def get_group_state_streak(cluster_name: str, group_id: str) -> dict | None:
         row = conn.execute("SELECT * FROM group_state_streak WHERE cluster_name=? AND group_id=?",
                            (cluster_name, group_id)).fetchone()
     return dict(row) if row else None
+
+
+def save_recommendations(matches: list[dict], displayed: set[str]) -> None:
+    """Persist every rule match once at the collection boundary, before display caps."""
+    now = utc_now_iso()
+    with _get_connection() as conn:
+        conn.executemany("""INSERT INTO recommendation_log
+            (cluster_name,group_id,topic,rule,type,priority,displayed,metrics_json,run_id,recorded_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?)""", [
+            (r["cluster_name"], r["group_id"], r["topic"], r["id"].rsplit("-",1)[-1],
+             r["type"], r["priority"], int(r["id"] in displayed),
+             json.dumps(r["metrics"], sort_keys=True), CONFIG.get("run_id"), now) for r in matches])
+
+
+def _sqlite_integer(value):
+    """Keep rare unbounded ETAs losslessly without changing the forecast result."""
+    if isinstance(value, int) and not -(2**63) <= value < 2**63:
+        return "integer:" + str(value)
+    return value

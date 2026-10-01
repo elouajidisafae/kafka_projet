@@ -27,3 +27,7 @@ artifacts/
 
 # Public synthetic regression fixture (never a runtime database)
 !/tests/fixtures/golden.db
+
+# Local benchmark captures and derived results
+bench/data/
+bench/results/
