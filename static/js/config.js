@@ -21,14 +21,14 @@ async function loadConfig() {
 
 async function saveConfig() {
   const statusEl = document.getElementById('save-status');
-  statusEl.textContent = 'Sauvegarde...';
+  statusEl.textContent = 'Saving...';
   statusEl.className = '';
 
   const warning  = parseInt(document.getElementById('warning-threshold').value);
   const critical = parseInt(document.getElementById('critical-threshold').value);
 
   if (warning >= critical) {
-    statusEl.textContent = 'Erreur : le seuil WARNING doit etre inferieur au seuil CRITICAL.';
+    statusEl.textContent = 'Error: the WARNING threshold must be lower than the CRITICAL threshold.';
     statusEl.className = 'status-error';
     return;
   }
@@ -57,11 +57,11 @@ async function saveConfig() {
   const json = await res.json();
 
   if (json.success) {
-    statusEl.textContent = 'Configuration sauvegardee avec succes.';
+    statusEl.textContent = 'Configuration saved successfully.';
     statusEl.className = '';
     setTimeout(() => statusEl.textContent = '', 3000);
   } else {
-    statusEl.textContent = 'Erreur : ' + (json.error || 'inconnue');
+    statusEl.textContent = 'Error: ' + (json.error || 'unknown error');
     statusEl.className = 'status-error';
   }
 }

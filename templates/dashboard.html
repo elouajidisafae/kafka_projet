@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,7 +14,7 @@
   <h1>Kafka Health Monitor</h1>
   <nav>
     <a href="/"      class="nav-link active">Dashboard</a>
-    <a href="/stats" class="nav-link">Statistiques</a>
+    <a href="/stats" class="nav-link">Statistics</a>
     <a href="/config" class="nav-link">Configuration</a>
     <a href="/audit" class="nav-link">Audit Trail</a>
   </nav>
@@ -46,7 +46,7 @@
           </div>
         </div>
         <div class="score-info">
-          <div class="score-label">Health Score global</div>
+          <div class="score-label">Overall health score</div>
           <div id="score-grade">—</div>
           <div id="score-detail">—</div>
         </div>
@@ -56,7 +56,7 @@
     </div>
 
   <div class="cards">
-    <div class="card total"><div class="label">Groupes suivis</div><div class="value" id="c-total">—</div></div>
+    <div class="card total"><div class="label">Monitored groups</div><div class="value" id="c-total">—</div></div>
     <div class="card ok">  <div class="label">OK</div>            <div class="value" id="c-ok">—</div></div>
     <div class="card warn"><div class="label">Warning</div>       <div class="value" id="c-warn">—</div></div>
     <div class="card crit"><div class="label">Critical</div>      <div class="value" id="c-crit">—</div></div>
@@ -70,9 +70,9 @@
           <th>Consumer Group</th>
           <th>Topic</th>
           <th style="text-align:right">Total Lag</th>
-          <th>Statut</th>
+          <th>Status</th>
           <th>State</th>
-          <th>Dernière mesure</th>
+          <th>Latest measurement</th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
@@ -96,36 +96,36 @@
 
   <!-- Predictive Lag Forecasting -->
   <div class="chart-section" style="margin-bottom:20px">
-    <h2>Predictive Lag Forecasting — régression linéaire sur historique</h2>
+    <h2>Predictive Lag Forecasting — linear regression on historical data</h2>
     <div id="forecast-table">
-      <div class="placeholder-text">Chargement des prédictions...</div>
+      <div class="placeholder-text">Loading forecasts...</div>
     </div>
   </div>
 
   <!-- Graphe prédiction (caché jusqu'au clic) -->
   <div class="chart-section" id="forecast-chart-section" style="display:none;margin-bottom:20px">
-    <h2 id="forecast-chart-title">Prédiction</h2>
+    <h2 id="forecast-chart-title">Forecast</h2>
     <div class="forecast-legend">
-      <span class="legend-item"><span class="legend-dot" style="background:#378ADD"></span>Lag observé (SQLite)</span>
-      <span class="legend-item"><span class="legend-dot" style="background:#EF9F27"></span>Prédiction (régression)</span>
-      <span class="legend-item"><span class="legend-line" style="background:#E24B4A"></span>Seuil CRITICAL</span>
-      <span class="legend-item"><span class="legend-line" style="background:#BA7517"></span>Seuil WARNING</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#378ADD"></span>Observed lag</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#EF9F27"></span>Forecast (regression)</span>
+      <span class="legend-item"><span class="legend-line" style="background:#E24B4A"></span>CRITICAL threshold</span>
+      <span class="legend-item"><span class="legend-line" style="background:#BA7517"></span>WARNING threshold</span>
     </div>
     <div id="forecast-chart-placeholder" class="placeholder-text">
-      ← Cliquez sur une ligne du tableau ci-dessus
+      ← Click a row in the table above
     </div>
     <div style="position:relative;width:100%;height:300px">
       <canvas id="forecast-canvas" role="img"
-              aria-label="Graphe lag observé et prédiction avec seuils d'alerte">
+              aria-label="Observed lag and forecast chart with alert thresholds">
       </canvas>
     </div>
   </div>
 
   <!-- Graphe historique -->
   <div class="chart-section">
-    <h2 id="chart-title">Cliquez sur une ligne pour voir l'évolution du lag</h2>
+    <h2 id="chart-title">Click a row to view lag history</h2>
     <div id="chart-placeholder" class="placeholder-text">
-      ← Sélectionnez un consumer group dans le tableau
+      ← Select a consumer group in the table
     </div>
     <canvas id="lag-chart" style="display:none"></canvas>
   </div>

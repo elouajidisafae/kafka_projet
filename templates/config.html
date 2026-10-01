@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,7 +14,7 @@
   <h1>Kafka Health Monitor</h1>
   <nav>
     <a href="/"      class="nav-link">Dashboard</a>
-    <a href="/stats" class="nav-link">Statistiques</a>
+    <a href="/stats" class="nav-link">Statistics</a>
     <a href="/config" class="nav-link active">Configuration</a>
     <a href="/audit" class="nav-link">Audit Trail</a>
   </nav>
@@ -28,76 +28,76 @@
 <main>
   <div class="config-header">
     <h2>Configuration</h2>
-    <p>Les modifications sont sauvegardées dans <code>config.yml</code> et appliquées immédiatement.</p>
+    <p>Changes are saved in <code>config.yml</code> and applied immediately.</p>
   </div>
 
   <!-- Alertes -->
   <div class="config-section">
-    <h3>Seuils d'alerte</h3>
-    <p class="section-desc">Définit quand un consumer group passe en WARNING ou CRITICAL.</p>
+    <h3>Alert thresholds</h3>
+    <p class="section-desc">Define when a consumer group enters WARNING or CRITICAL status.</p>
 
     <div class="form-grid">
       <div class="form-group">
-        <label for="warning-threshold">Seuil WARNING (messages)</label>
+        <label for="warning-threshold">WARNING threshold (messages)</label>
         <input type="number" id="warning-threshold" min="1" placeholder="1000">
-        <span class="form-hint">En dessous → OK. Au-dessus → WARNING.</span>
+        <span class="form-hint">Below → OK. Above → WARNING.</span>
       </div>
       <div class="form-group">
-        <label for="critical-threshold">Seuil CRITICAL (messages)</label>
+        <label for="critical-threshold">CRITICAL threshold (messages)</label>
         <input type="number" id="critical-threshold" min="1" placeholder="10000">
-        <span class="form-hint">Au-dessus → CRITICAL.</span>
+        <span class="form-hint">Above → CRITICAL.</span>
       </div>
     </div>
   </div>
 
   <!-- Monitor -->
   <div class="config-section">
-    <h3>Collecte des métriques</h3>
-    <p class="section-desc">Paramètres du collecteur de lag.</p>
+    <h3>Metric collection</h3>
+    <p class="section-desc">Lag collector settings.</p>
 
     <div class="form-grid">
       <div class="form-group">
-        <label for="refresh-interval">Intervalle de collecte (secondes)</label>
+        <label for="refresh-interval">Collection interval (seconds)</label>
         <input type="number" id="refresh-interval" min="1" max="300" placeholder="5">
-        <span class="form-hint">Fréquence de lecture des offsets Kafka.</span>
+        <span class="form-hint">How often Kafka offsets are read.</span>
       </div>
       <div class="form-group">
-        <label for="retention-days">Rétention historique (jours)</label>
+        <label for="retention-days">History retention (days)</label>
         <input type="number" id="retention-days" min="1" max="365" placeholder="7">
-        <span class="form-hint">Durée de conservation dans SQLite.</span>
+        <span class="form-hint">How long history is retained in SQLite.</span>
       </div>
     </div>
   </div>
 
   <!-- Clusters -->
   <div class="config-section">
-    <h3>Clusters configurés</h3>
-    <p class="section-desc">Clusters Kafka surveillés. Modifiez <code>config.yml</code> pour en ajouter.</p>
+    <h3>Configured clusters</h3>
+    <p class="section-desc">Monitored Kafka clusters. Edit <code>config.yml</code> to add more.</p>
     <div id="clusters-list"></div>
   </div>
 
   <!-- Topics/Groups exclus -->
   <div class="config-section">
     <h3>Exclusions</h3>
-    <p class="section-desc">Topics et consumer groups à ignorer.</p>
+    <p class="section-desc">Topics and consumer groups to ignore.</p>
     <div class="form-grid">
       <div class="form-group">
-        <label for="exclude-topics">Topics exclus</label>
+        <label for="exclude-topics">Excluded topics</label>
         <input type="text" id="exclude-topics" placeholder="topic1, topic2">
-        <span class="form-hint">Séparés par des virgules.</span>
+        <span class="form-hint">Comma-separated.</span>
       </div>
       <div class="form-group">
-        <label for="exclude-groups">Consumer groups exclus</label>
+        <label for="exclude-groups">Excluded consumer groups</label>
         <input type="text" id="exclude-groups" placeholder="group1, group2">
-        <span class="form-hint">Séparés par des virgules.</span>
+        <span class="form-hint">Comma-separated.</span>
       </div>
     </div>
   </div>
 
   <!-- Boutons -->
   <div class="form-actions">
-    <button id="save-btn" onclick="saveConfig()">Sauvegarder</button>
-    <button id="reset-btn" onclick="loadConfig()">Annuler</button>
+    <button id="save-btn" onclick="saveConfig()">Save</button>
+    <button id="reset-btn" onclick="loadConfig()">Cancel</button>
     <span id="save-status"></span>
   </div>
 

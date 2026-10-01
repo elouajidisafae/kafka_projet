@@ -19,8 +19,7 @@ artifacts/
 
 # Internal planning, reviews, and execution evidence
 /internal/
-/docs/batch*-validation.md
-/docs/batch*-evidence/
+/docs/
 
 # SQLite auxiliary files
 *.db-*

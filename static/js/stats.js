@@ -5,7 +5,7 @@ const CLUSTER_COLORS = {
 };
 
 const fmt = (n) => n >= 0
-  ? Math.round(n).toLocaleString('fr-FR')
+  ? Math.round(n).toLocaleString('en-GB')
   : 'N/A';
 
 let timelineChart = null;
@@ -21,7 +21,7 @@ async function loadStats() {
   renderMeta(data.meta || {});
 
   document.getElementById('last-update').textContent =
-    'Mis a jour : ' + new Date().toLocaleTimeString('fr-FR');
+    'Updated: ' + new Date().toLocaleTimeString('en-GB');
 }
 
 function renderClusterSummary(clusters) {
@@ -37,7 +37,7 @@ function renderClusterSummary(clusters) {
           <div class="cluster-stat-metrics">
             <div class="stat-metric">
               <span class="val total">${fmt(c.total_lag)}</span>
-              <span class="lbl">Lag total</span>
+              <span class="lbl">Total lag</span>
             </div>
             <div class="stat-metric">
               <span class="val crit">${c.nb_critical}</span>
@@ -57,7 +57,7 @@ function renderClusterSummary(clusters) {
             </div>
             <div class="stat-metric">
               <span class="val total">${fmt(c.avg_lag)}</span>
-              <span class="lbl">Moy lag</span>
+              <span class="lbl">Average lag</span>
             </div>
           </div>
         </div>`;
@@ -120,7 +120,7 @@ function renderTopTopics(topics) {
       <span class="top-rank">#${i + 1}</span>
       <div style="flex:1">
         <div class="top-name">${t.topic}</div>
-        <div class="top-sub">${t.nb_groups} groupe(s)</div>
+        <div class="top-sub">${t.nb_groups} group(s)</div>
         <div class="lag-bar-wrap" style="margin-top:4px">
           <div class="lag-bar" style="width:${Math.round(t.total_lag / maxLag * 100)}%"></div>
         </div>
@@ -158,19 +158,19 @@ function renderMeta(meta) {
   document.getElementById('meta-info').innerHTML = `
     <div class="meta-grid">
       <div class="meta-item">
-        <div class="lbl">Total enregistrements SQLite</div>
-        <div class="val">${(meta.total_records || 0).toLocaleString('fr-FR')}</div>
+        <div class="lbl">Total SQLite records</div>
+        <div class="val">${(meta.total_records || 0).toLocaleString('en-GB')}</div>
       </div>
       <div class="meta-item">
-        <div class="lbl">Premiere mesure</div>
+        <div class="lbl">Earliest measurement</div>
         <div class="val">${fmt_ts(meta.oldest_record)}</div>
       </div>
       <div class="meta-item">
-        <div class="lbl">Derniere mesure</div>
+        <div class="lbl">Latest measurement</div>
         <div class="val">${fmt_ts(meta.newest_record)}</div>
       </div>
       <div class="meta-item">
-        <div class="lbl">Genere le</div>
+        <div class="lbl">Generated at</div>
         <div class="val">${fmt_ts(meta.generated_at)}</div>
       </div>
     </div>

@@ -21,3 +21,6 @@ build
 # Local benchmark captures and derived results
 bench/data/
 bench/results/
+
+# Private documentation
+docs/

@@ -27,11 +27,11 @@ const stateBadge = (state) => {
   return `<span class="state-badge ${cls}">${label}</span>`;
 };
 
-const fmt = (n) => n >= 0 ? Number(n).toLocaleString('fr-FR') : 'N/A';
+const fmt = (n) => n >= 0 ? Number(n).toLocaleString('en-GB') : 'N/A';
 
 const trendIcon = (t) =>
-  t === 'INCREASING' ? '<span class="trend-up">↑ croissant</span>'
-  : t === 'DECREASING' ? '<span class="trend-down">↓ décroissant</span>'
+  t === 'INCREASING' ? '<span class="trend-up">↑ increasing</span>'
+  : t === 'DECREASING' ? '<span class="trend-down">↓ decreasing</span>'
   : '<span class="trend-stab">→ stable</span>';
 
 const confBadge = (c, r2) => {
@@ -40,8 +40,8 @@ const confBadge = (c, r2) => {
 };
 
 const etaBadge = (etaMin, label) => {
-  if (etaMin === -1) return `<span class="eta-badge eta-crit">Déjà ${label}</span>`;
-  if (etaMin === -2) return `<span class="eta-badge eta-ok">Jamais atteint</span>`;
+  if (etaMin === -1) return `<span class="eta-badge eta-crit">Already ${label}</span>`;
+  if (etaMin === -2) return `<span class="eta-badge eta-ok">Not projected to reach threshold</span>`;
   if (etaMin < 10)  return `<span class="eta-badge eta-crit">${label} ~${etaMin} min</span>`;
   if (etaMin < 30)  return `<span class="eta-badge eta-warn">${label} ~${etaMin} min</span>`;
   return `<span class="eta-badge eta-ok">${label} ~${etaMin} min</span>`;
@@ -55,7 +55,7 @@ function renderTabs(clusters) {
   container.innerHTML = all.map(c => `
     <div class="tab ${c === (activeCluster || 'all') ? 'active' : ''}"
          onclick="selectCluster('${c}')">
-      ${c === 'all' ? 'Tous les clusters' : c}
+      ${c === 'all' ? 'All clusters' : c}
     </div>
   `).join('');
 }
@@ -64,7 +64,7 @@ function selectCluster(name) {
   activeCluster = name === 'all' ? null : name;
   document.querySelectorAll('.tab').forEach(t => {
     t.classList.toggle('active',
-      t.textContent.trim() === (name === 'all' ? 'Tous les clusters' : name)
+      t.textContent.trim() === (name === 'all' ? 'All clusters' : name)
     );
   });
   refresh();
@@ -107,8 +107,8 @@ async function refresh() {
     `).join('');
 
   document.getElementById('last-update').innerHTML =
-    '<span id="refresh-dot"></span>Mis à jour : '
-    + new Date().toLocaleTimeString('fr-FR');
+    '<span id="refresh-dot"></span>Updated: '
+    + new Date().toLocaleTimeString('en-GB');
 }
 
 // ── Historique chart ──────────────────────────────────────────────────────────
@@ -135,7 +135,7 @@ async function loadChart(cluster, group, topic) {
     data: {
       labels: pts.map(p => p.recorded_at.slice(11, 19)),
       datasets: [{
-        label: 'Lag total',
+        label: 'Total lag',
         data: pts.map(p => p.total_lag),
         borderColor: '#7dd3fc',
         backgroundColor: '#7dd3fc22',
@@ -162,7 +162,7 @@ async function refreshForecast() {
   const container = document.getElementById('forecast-table');
 
   if (!forecasts.length) {
-    container.innerHTML = '<div class="placeholder-text">Aucune prédiction disponible</div>';
+    container.innerHTML = '<div class="placeholder-text">No forecasts available</div>';
     return;
   }
 
@@ -171,7 +171,7 @@ async function refreshForecast() {
       return `<div class="forecast-row">
         <span class="cluster-pill">${f.cluster_name || '—'}</span>
         <span style="color:#64748b">${f.group_id || '—'} / ${f.topic || '—'}</span>
-        <span style="color:#475569;font-size:.75rem">Données insuffisantes</span>
+        <span style="color:#475569;font-size:.75rem">Insufficient data</span>
       </div>`;
     }
     return `<div class="forecast-row" style="cursor:pointer"
@@ -194,14 +194,14 @@ async function refreshForecast() {
   container.innerHTML = `
     <div class="forecast-header">
       <span style="min-width:60px">Cluster</span>
-      <span style="min-width:160px">Groupe / Topic</span>
-      <span style="min-width:80px">Lag actuel</span>
-      <span style="min-width:120px">Tendance</span>
+      <span style="min-width:160px">Group / Topic</span>
+      <span style="min-width:80px">Current lag</span>
+      <span style="min-width:120px">Trend</span>
       <span>ETA Warning</span>
       <span>ETA Critical</span>
       <span>+5 min</span>
       <span>+15 min</span>
-      <span>Confiance</span>
+      <span>Confidence</span>
     </div>
     ${rows.join('')}
   `;
@@ -218,7 +218,7 @@ async function refreshHealthScore() {
 
   document.getElementById('score-value').textContent = score;
   document.getElementById('score-value').style.color = color;
-  document.getElementById('score-grade').textContent = json.grade || '—';
+  document.getElementById('score-grade').textContent = ({Bon: 'Good', Moyen: 'Fair', Mauvais: 'Poor', Critique: 'Critical', 'Aucune donnee': 'No data', 'Chargement...': 'Loading...'})[json.grade] || json.grade || '—';
   document.getElementById('score-grade').style.color = color;
 
   const d = json.details || {};
@@ -260,7 +260,7 @@ function _clusterScoreColor(score) {
 async function loadForecastChart(cluster, group, topic, slopePerMin, currentLag) {
   document.getElementById('forecast-chart-section').style.display = 'block';
   document.getElementById('forecast-chart-title').textContent =
-    `Prédiction — ${cluster} / ${group} / ${topic}`;
+    `Forecast — ${cluster} / ${group} / ${topic}`;
   document.getElementById('forecast-chart-placeholder').style.display = 'none';
 
   const res  = await fetch(
@@ -300,14 +300,14 @@ async function loadForecastChart(cluster, group, topic, slopePerMin, currentLag)
       labels: allLabels,
       datasets: [
         {
-          label: 'Lag observé',
+          label: 'Observed lag',
           data: allObs,
           borderColor: '#378ADD',
           backgroundColor: '#378ADD22',
           fill: true, tension: 0.3, pointRadius: 2, spanGaps: false,
         },
         {
-          label: 'Prédiction',
+          label: 'Forecast',
           data: allPred,
           borderColor: '#EF9F27',
           borderDash: [6, 3],

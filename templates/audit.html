@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -110,7 +110,7 @@
   <h1>Kafka Health Monitor</h1>
   <nav>
     <a href="/"      class="nav-link">Dashboard</a>
-    <a href="/stats" class="nav-link">Statistiques</a>
+    <a href="/stats" class="nav-link">Statistics</a>
     <a href="/config" class="nav-link">Configuration</a>
     <a href="/audit" class="nav-link active">Audit Trail</a>
   </nav>
@@ -125,7 +125,7 @@
   <div class="config-header" style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 24px;">
     <div>
       <h2>Audit Trail</h2>
-      <p>Historique intelligent des événements système.</p>
+      <p>System event history.</p>
     </div>
     <div class="audit-actions">
       <button class="btn-export" onclick="exportAudit('csv')">Export CSV</button>
@@ -135,22 +135,22 @@
 
   <div class="audit-summary">
     <div class="stat-card">
-      <div class="label">Alertes (24h)</div>
+      <div class="label">Alerts (24h)</div>
       <div class="value" id="stat-alerts">0</div>
     </div>
     <div class="stat-card">
-      <div class="label">Changements Config</div>
+      <div class="label">Configuration changes</div>
       <div class="value" id="stat-config">0</div>
     </div>
     <div class="stat-card">
-      <div class="label">Conseils Générés</div>
+      <div class="label">Recommendations generated</div>
       <div class="value" id="stat-reco">0</div>
     </div>
   </div>
 
   <div class="table-wrap" style="padding: 0;">
     <div id="audit-feed">
-      <div class="placeholder-text" style="padding: 40px;">Chargement du flux d'audit...</div>
+      <div class="placeholder-text" style="padding: 40px;">Loading audit events...</div>
     </div>
   </div>
 </main>
@@ -165,7 +165,7 @@ async function loadAuditLogs() {
     
     const feed = document.getElementById('audit-feed');
     if (!currentLogs || currentLogs.length === 0) {
-      feed.innerHTML = '<div class="placeholder-text" style="padding: 40px;">Aucun événement enregistré.</div>';
+      feed.innerHTML = '<div class="placeholder-text" style="padding: 40px;">No events recorded.</div>';
       return;
     }
 
@@ -208,7 +208,7 @@ async function loadAuditLogs() {
       `;
     }).join('');
     
-    document.getElementById('last-update').textContent = 'Mis à jour : ' + new Date().toLocaleTimeString('fr-FR');
+    document.getElementById('last-update').textContent = 'Updated: ' + new Date().toLocaleTimeString('en-GB');
   } catch (e) {
     console.error(e);
   }
