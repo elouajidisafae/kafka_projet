@@ -43,3 +43,9 @@ Evaluation computes per-repetition metrics first, then median [Q1,Q3] across rep
 Per-repetition scoring is limited to that workload's recorded start/end, excluding later stale forecasts after shutdown. Flat-high crossings are calibration failures. Summary output lists independent truth discrepancies, production/consumption rate drift and observed commit gaps. Inspect these checks before interpreting forecast quality. Collection resolution is five seconds, with overruns separately observable in the timing logs.
 
 The cycle-overrun counter counts a serial global collection cycle exceeding its period and is attributed to participating clusters. Counter values are process-local. No overlapping collector cycles are scheduled.
+
+### Repeated cached forecasts
+
+Dashboard requests can persist cached forecasts between collection cycles. Numerical replay checks every forecast row. Recommendation fidelity is checked once per cluster/group/topic and exact ordered input-row ID list, combining logged matches associated with that observation. Different input lists are never merged; missing or unexpected matches remain failures. The fidelity report includes the number of distinct observations and repeated-input rows.
+
+Evaluation uses the earliest persisted forecast for each exact input observation, so browser polling does not change the weight of that observation in error and missed-warning metrics or the forecast denominator for false alarms. Live recommendation timestamps are retained. This also collapses unchanged-input forecasts after a workload ends; scoring remains bounded to each repetition's recorded start/end. The report exposes this sampling policy and both row counts. Original recordings remain sealed; this is an offline analysis correction, not a new recording or a change to forecast mathematics. A passing report establishes pipeline acceptance, not that the forecaster has low prediction errors or no false alarms.

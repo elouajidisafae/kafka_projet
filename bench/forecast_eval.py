@@ -89,7 +89,7 @@ def evaluate(dataset,forecaster="baseline",source="live",plot=True):
     dataset=Path(dataset)
     manifest=verify(dataset)
     history=read_csv(dataset/"lag_history.csv")
-    from bench.replay import load_forecaster
+    from bench.replay import load_forecaster, unique_forecast_rows
     model_name=load_forecaster(forecaster,manifest["config"]).name
     output=ROOT/"bench/results"/manifest["run_id"]/model_name
     output.mkdir(parents=True,exist_ok=True)
@@ -101,6 +101,13 @@ def evaluate(dataset,forecaster="baseline",source="live",plot=True):
     else:
         forecasts=json.loads((output/"replay.json").read_text())
         recommendations=read_csv(output/"replayed_recommendations.csv")
+    # Browser polls must not give repeated observations extra statistical weight.
+    original_forecasts = read_csv(dataset/"forecast_log.csv")
+    canonical_ids = {r["id"] for r in unique_forecast_rows(original_forecasts)}
+    original_count = len(forecasts)
+    forecasts = [f for f in forecasts if str(f["id"]) in canonical_ids]
+    if source != "live":
+        recommendations = [r for r in recommendations if str(r["forecast_id"]) in canonical_ids]
     per_rep=[]
     pairs=[]
     grouped=defaultdict(lambda:defaultdict(list))
@@ -132,6 +139,8 @@ def evaluate(dataset,forecaster="baseline",source="live",plot=True):
     fidelity=json.loads(fidelity_path.read_text()) if fidelity_path.exists() else {}
     summary=dict(run_id=manifest["run_id"],forecaster=forecaster,source=source,smoke=manifest["profile"]=="smoke",
         publishable=publication_eligible(manifest,checks,truth_fraction,fidelity),
+        forecast_sampling="earliest persisted row per pair and ordered input IDs",
+        forecast_rows=original_count, unique_forecast_observations=len(forecasts),
         resolution_floor_seconds=interval,error_sign="positive means predicted later than reality",
         aggregation="per-repetition metrics, then median [Q1,Q3] across repetitions; null means not estimable",
         patterns={pattern:{name:quantiles(values) for name,values in metrics.items()} for pattern,metrics in grouped.items()},

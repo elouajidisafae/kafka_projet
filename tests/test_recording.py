@@ -97,7 +97,8 @@ def test_seal_detects_tampering(tmp_path):
     with pytest.raises(ValueError): verify(tmp_path)
 
 
-def test_export_replay_and_deterministic_summary(tmp_path,monkeypatch):
+@pytest.mark.parametrize("missing_recommendations", [False, True])
+def test_export_replay_and_deterministic_summary(tmp_path,monkeypatch,missing_recommendations):
     import runpy
     from bench import replay as replay_module, forecast_eval as evaluation
     from bench.export_run import export
@@ -115,6 +116,10 @@ def test_export_replay_and_deterministic_summary(tmp_path,monkeypatch):
     with db._get_connection() as conn: conn.execute("UPDATE lag_history SET run_id='synthetic'")
     forecasting.forecast_all()
     recommender.get_recommendations(persist=True)
+    forecasting.cached_forecast_all()  # dashboard persistence without a recommendation pass
+    if missing_recommendations:
+        with db._get_connection() as conn:
+            conn.execute("DELETE FROM recommendation_log WHERE rule IN ('scale','topology')")
     dataset=tmp_path/"data"
     dataset.mkdir()
     repetitions=[]
@@ -129,7 +134,12 @@ def test_export_replay_and_deterministic_summary(tmp_path,monkeypatch):
     export("synthetic",database,dataset)
     monkeypatch.setattr(replay_module,"ROOT",tmp_path)
     monkeypatch.setattr(evaluation,"ROOT",tmp_path)
-    assert replay_module.replay(dataset)["passed"]
+    fidelity = replay_module.replay(dataset)
+    assert fidelity["repeated_input_rows"] > 0
+    if missing_recommendations:
+        assert not fidelity["passed"] and fidelity["recommendation_mismatches"]
+        return
+    assert fidelity["passed"]
     evaluation.evaluate(dataset,plot=False)
     summary=tmp_path/"bench/results/synthetic/baseline/summary.json"
     first=summary.read_bytes()
@@ -270,3 +280,23 @@ def test_publication_requires_all_acceptance_evidence():
     for field,value in [('passed',False),('exact_forecast_fraction',.98),('exact_recommendation_fraction',.98),
                         ('forecast_mismatches',[{'cause':'unexplained'}]),('recommendation_mismatches',[{'cause':'unexplained'}])]:
         assert not publication_eligible(manifest,[check],1,dict(fidelity,**{field:value}))
+
+
+def test_cached_api_forecasts_share_evidence_but_distinct_inputs_do_not():
+    from bench.replay import recommendation_observations, unique_forecast_rows
+    def forecast(i, time, ids):
+        return dict(id=str(i), recorded_at=time, cluster_name='c', group_id='g', topic='t',input_ids_json=json.dumps(ids))
+    rows=[forecast(1,'01',[1,2]),forecast(2,'03',[1,2]),forecast(3,'05',[2,3])]
+    recs=[dict(recorded_at='02',cluster_name='c',group_id='g',topic='t',rule='scale',priority='MEDIUM')]
+    identities,observed=recommendation_observations(rows,recs)
+    assert identities['1']==identities['2']
+    assert observed[identities['2']]=={('scale','MEDIUM')}
+    assert not observed[identities['3']]  # a genuine missing recommendation is not forgiven
+    assert [r['id'] for r in unique_forecast_rows(rows)]==['1','3']
+    recs.append(dict(recs[0],recorded_at='04',priority='HIGH'))
+    _,observed=recommendation_observations(rows,recs)
+    assert observed[identities['1']]=={('scale','MEDIUM'),('scale','HIGH')}  # unexpected rules remain visible
+    rows.append(dict(rows[0],id='4',group_id='other'))
+    assert len(unique_forecast_rows(rows))==3
+    rows.append(forecast(5,'06',[2,1]))
+    assert len(unique_forecast_rows(rows))==4  # order is part of provenance
