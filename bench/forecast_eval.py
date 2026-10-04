@@ -99,6 +99,12 @@ def evaluate(dataset,forecaster="baseline",source="live",plot=True,secondary=Fal
         from bench.heldout import lock_evaluation
         lock_evaluation(dataset)
         parameters, _ = frozen_parameters()
+    if split == "heldout-exploratory":
+        from bench.responsive import lock_exploratory, responsive_parameters
+        lock_exploratory(dataset)
+        parameters, _ = responsive_parameters()
+        if forecaster not in {"V0", "baseline", "V2"}:
+            raise ValueError("Exploratory comparison is V2 versus V0 only")
     if parameters:
         config["forecast"].update(parameters)
     history=read_csv(dataset/"lag_history.csv")
@@ -189,8 +195,15 @@ def evaluate(dataset,forecaster="baseline",source="live",plot=True,secondary=Fal
             repetition_ids=[r["group_id"] for r in manifest["repetitions"]],
             patterns={pattern:{name:quantiles(values) for name,values in metrics.items()}
                       for pattern,metrics in secondary_grouped.items()})
+        if split == "heldout-exploratory":
+            for row in secondary_rows:
+                row["analysis_class"] = "exploratory"
         write_csv(output/"secondary_per_rep.csv", secondary_rows,
                   ["analysis_class","rep","pattern","metric","value"])
+    if split == "heldout-exploratory":
+        summary["analysis_class"] = "exploratory"
+        if secondary:
+            summary["secondary"]["analysis_class"] = "exploratory"
     write_json(output/"summary.json",summary)
     write_csv(output/"per_rep.csv",per_rep,["rep","pattern","metric","value"])
     write_csv(output/"pairs.csv",pairs,["rep","pattern","forecast_id","forecast_time","truth","error_seconds","horizon_seconds","confidence"])

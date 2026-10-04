@@ -96,20 +96,25 @@ def paired_metrics(rows):
     return result
 
 
-def compare(dataset):
+def compare(dataset, *, exploratory=False):
     from bench.replay import replay, unique_forecast_rows
     from bench.forecast_eval import evaluate, quantiles
-    manifest, provenance, output = lock_evaluation(dataset)
-    reps, _ = select_repetitions(manifest,"heldout",True)
+    split = "heldout-exploratory" if exploratory else "heldout"
+    if exploratory:
+        from bench.responsive import lock_exploratory
+        manifest, provenance, output = lock_exploratory(dataset)
+    else:
+        manifest, provenance, output = lock_evaluation(dataset)
+    reps, _ = select_repetitions(manifest,split,True)
     canonical = {r["id"] for r in unique_forecast_rows(read_csv(Path(dataset)/"forecast_log.csv"))}
     summaries, rows = {}, []
-    for variant in ("V0","V1","V2","V3"):
+    for variant in (("V0","V2") if exploratory else ("V0","V1","V2","V3")):
         name = "baseline" if variant=="V0" else variant
         directory = output/name
         # A completed replay can be reused only under the unchanged freeze lock.
         if not (directory/"replay-complete.json").exists():
             print("Replaying "+variant+" on wave 2", flush=True)
-            replay(dataset,variant,split="heldout")
+            replay(dataset,variant,split=split)
             write_json(directory/"replay-complete.json", dict(provenance=provenance,
                 sha256={name:hashlib.sha256((directory/name).read_bytes()).hexdigest()
                         for name in ("replay.json","replayed_recommendations.csv","fidelity.json")}))
@@ -118,7 +123,7 @@ def compare(dataset):
             hashlib.sha256((directory/name).read_bytes()).hexdigest()!=digest
             for name,digest in receipt["sha256"].items()):
             raise ValueError("Completed replay differs from frozen evaluation receipt")
-        summary = evaluate(dataset,variant,source="replay",secondary=True,split="heldout",plot=False)
+        summary = evaluate(dataset,variant,source="replay",secondary=True,split=split,plot=False)
         summaries[variant] = summary
         for filename in ("per_rep.csv","secondary_per_rep.csv"):
             for r in read_csv(directory/filename):
@@ -143,12 +148,18 @@ def compare(dataset):
                 intervals[rep["pattern"]][metric].append(value)
         for pattern,metrics in intervals.items():
             summary["patterns"][pattern].update({k:quantiles(v) for k,v in metrics.items()})
-    result = dict(split="heldout",run_id=manifest["run_id"],**provenance,
+    result = dict(split=split,run_id=manifest["run_id"],**provenance,
         repetition_ids=sorted(r["group_id"] for r in reps), variants=summaries,
         paired=paired_metrics(rows),
         secondary=dict(analysis_class="secondary",variants={v:s["secondary"] for v,s in summaries.items()}),
         interval_policy="All pre-breach forecasts; missing lower bound counts as uncovered; null upper bound is open-ended. Width excludes open-ended intervals.",
         paired_policy="Variant minus V0 per repetition. Unavailable comparisons remain null (not zero). Narrower width alone is not evidence of better calibration.")
+    if exploratory:
+        result["analysis_class"] = "exploratory"
+        result["interval_policy"] = "V0 and V2 emit no intervals; interval metrics remain unavailable."
+        result["secondary"]["analysis_class"] = "exploratory"
+        for row in rows:
+            row["analysis_class"] = "exploratory"
     encoded = json.dumps(result,sort_keys=True,indent=2,allow_nan=False)+"\n"
     final = output/"summary.json"
     if final.exists() and final.read_text(encoding="utf-8") != encoded:

@@ -110,7 +110,7 @@ def api_forecast():
     Basé sur une régression linéaire sur l'historique SQLite.
     """
     results = cached_forecast_all()
-    return {"forecasts": results}
+    return {"forecasts": results, "show_range": CONFIG.get("forecast", {}).get("show_range", False)}
 
 @app.get("/api/recommendations")
 def api_recommendations():

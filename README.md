@@ -33,8 +33,9 @@ Set brokers in `config.yml` under `clusters`. Key settings:
 | `alerts.warning_threshold` / `critical_threshold` | 1000 / 10000 | Lag thresholds in messages |
 | `monitor.refresh_interval` | 5 | Collection interval in seconds |
 | `forecast.window_hours` | 1 | History used for linear extrapolation |
-| `forecast.method` | baseline | `multiwindow` selects a short or long fit; enabled in the supplied config |
-| `forecast.short_window_minutes` / `agreement_tolerance` | 15 / 1.0 | Short-window length and relative slope disagreement needed to select it |
+| `forecast.method` | baseline | `baseline` is the default; `multiwindow` enables responsive window selection |
+| `forecast.short_window_minutes` / `agreement_tolerance` | 5 / 0.5 | Short-window length and relative slope disagreement needed to select it |
+| `forecast.show_range` | false | Opt in to interval ranges in advice and the dashboard band |
 | `forecast.interval_level` | 0.90 | Fixed nominal prediction level for multiwindow ranges and bands |
 | `forecast.trend_deadband_msgs_per_sec` | 0.05 | Slopes within this range are stable |
 | `forecast.persist_every_cycle` | true | Save forecasts; API requests also save cached results |
@@ -46,7 +47,7 @@ Set brokers in `config.yml` under `clusters`. Key settings:
 
 Scaling advice requires rising lag, a positive critical ETA and spare partitions. Topology advice flags consumers at partition capacity. Unknown membership suppresses both; other rules cover stranded messages, stalled processing and persistent rebalancing.
 
-Multiwindow advice also requires a rising short-window trend. Empty/dead groups receive restart advice instead of scaling advice. Interval ranges are estimates: held-out coverage was below the nominal 90%; an open upper bound appears as “or later.” Set `method: baseline` to reproduce the original forecast.
+Multiwindow advice also requires a rising short-window trend. Empty/dead groups receive restart advice instead of scaling advice. Interval ranges are estimates: held-out coverage was below the nominal 90%; an open upper bound appears as “or later.” Baseline remains the default. To enable responsive mode, set `forecast.method: multiwindow`; its defaults are 5 minutes / 0.5. Ranges stay hidden unless `forecast.show_range: true`. The responsive setting has not yet been scored; no measured improvement is claimed.
 
 `/metrics` exposes collection/forecast duration, monitored pairs and collection overruns by cluster. Cycles never overlap. Retention covers lag, forecasts and recommendation matches, including those hidden by display limits.
 

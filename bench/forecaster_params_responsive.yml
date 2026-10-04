@@ -1,0 +1,17 @@
+analysis_class: exploratory
+dataset: baseline-20261001T111043363413Z
+evaluation_split: wave_2
+forecaster: V2
+comparison: V0
+method: multiwindow
+short_window_minutes: 5
+agreement_tolerance: 0.5
+interval_level: 0.90
+show_range: false
+rule: >-
+  Fixed responsive setting requested after inspecting the original held-out results;
+  no grid search or selection on wave 2. Fit the last 5 minutes and the long window;
+  select short when abs(slope_short - slope_long) / max(abs(slope_long), 0.05) > 0.5,
+  otherwise select long. Scale/topology advice also requires the short trend to be
+  INCREASING. Compare V2 against V0 on wave 2 only and report paired trade-offs,
+  including worse results. This is exploratory, not a new confirmatory held-out test.

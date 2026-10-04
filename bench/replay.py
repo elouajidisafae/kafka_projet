@@ -112,6 +112,12 @@ def replay(dataset, forecaster="baseline", split=None, parameters=None):
         from bench.heldout import lock_evaluation
         lock_evaluation(dataset)
         parameters, _ = frozen_parameters()
+    if split == "heldout-exploratory":
+        from bench.responsive import lock_exploratory, responsive_parameters
+        lock_exploratory(dataset)
+        parameters, _ = responsive_parameters()
+        if forecaster not in {"V0", "baseline", "V2"}:
+            raise ValueError("Exploratory comparison is V2 versus V0 only")
     if parameters:
         config["forecast"].update(parameters)
     model=load_forecaster(forecaster,config)

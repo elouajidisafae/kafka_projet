@@ -44,7 +44,8 @@ def test_stranded_suppresses_scale(monkeypatch,state):
 
 @pytest.mark.parametrize('high,text',[(None,'range 2.0 min or later'),(240,'range 2.0–4.0 min')])
 def test_interval_advice_and_short_trend_gate(monkeypatch,high,text):
-    monkeypatch.setattr(recommender,'CONFIG',config())
+    cfg=config(); cfg['forecast']['show_range']=True
+    monkeypatch.setattr(recommender,'CONFIG',cfg)
     f=dict(method='multiwindow',confidence='HIGH',slope_per_min=60,r_squared=.99,
            eta_critical_min=3,eta_critical_sec=180,eta_low_sec=120,eta_high_sec=high)
     def rules(consumers):
@@ -80,7 +81,7 @@ def test_nullable_migration_preserves_old_rows_and_persists_interval(golden_data
 @pytest.mark.parametrize('name,call', [('forecasts',forecasting.forecast_all),('recommendations',recommender.get_recommendations)])
 def test_multiwindow_golden(golden_database,name,call):
     for module in (db,forecasting,recommender):
-        module.CONFIG['forecast'].update(method='multiwindow',short_window_minutes=15,agreement_tolerance=1.0,interval_level=.9)
+        module.CONFIG['forecast'].update(method='multiwindow',short_window_minutes=15,agreement_tolerance=1.0,interval_level=.9,show_range=True)
     expected=(FIXTURES/'multiwindow_expected'/f'{name}.json').read_text(encoding='utf-8')
     assert canonical(call())==expected
 

@@ -49,8 +49,8 @@ def fit(records, baseline_fit, settings, threshold):
     """Select the window using the frozen rule and preserve baseline rounding."""
     if settings.get("interval_level", .90) != .90:
         raise ValueError("Prediction interval level is fixed at 0.90")
-    minutes = float(settings.get("short_window_minutes", 15))
-    tolerance = float(settings.get("agreement_tolerance", 1.0))
+    minutes = float(settings.get("short_window_minutes", 5))
+    tolerance = float(settings.get("agreement_tolerance", 0.5))
     if minutes <= 0 or tolerance < 0:
         raise ValueError("Window must be positive and tolerance non-negative")
     long = baseline_fit(records)

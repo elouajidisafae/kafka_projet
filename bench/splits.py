@@ -6,12 +6,11 @@ import yaml
 from bench.common import ROOT
 
 
-def frozen_parameters(root=ROOT):
+def frozen_parameters(root=ROOT, relative="bench/forecaster_params.yml"):
     root = Path(root)
-    relative = "bench/forecaster_params.yml"
     path = root/relative
     if not path.is_file():
-        raise ValueError("Held-out evaluation requires committed forecaster_params.yml")
+        raise ValueError(f"Held-out evaluation requires committed {relative}")
     try:
         committed = subprocess.check_output(["git","show","HEAD:"+relative],cwd=root,stderr=subprocess.DEVNULL)
         commit = subprocess.check_output(["git","log","-1","--format=%H","--",relative],cwd=root,text=True).strip()
@@ -32,6 +31,13 @@ def select_repetitions(manifest, split, candidate=False, root=ROOT):
         if manifest.get("profile") != "smoke" or manifest.get("config", {}).get("forecast", {}).get("method") != "multiwindow":
             raise ValueError("Smoke replay requires a multiwindow smoke recording")
         return manifest["repetitions"], {}
+    if split == "heldout-exploratory":
+        from bench.responsive import responsive_parameters
+        _, provenance = responsive_parameters(root)
+        rows = [r for r in manifest["repetitions"] if r["wave"] == 1]
+        if not rows:
+            raise ValueError("Requested split contains no repetitions")
+        return rows, provenance
     if candidate and split not in {"selection", "heldout"}:
         raise ValueError("Candidate evaluation requires an explicit selection or heldout split")
     provenance = {}

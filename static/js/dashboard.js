@@ -1,9 +1,10 @@
 let chart = null;
 let forecastChart = null;
 let displayedForecasts = [];
+let showForecastRange = false;
 
 function intervalLabel(f) {
-  if (f.method !== 'multiwindow') return '';
+  if (!showForecastRange || f.method !== 'multiwindow') return '';
   if (f.eta_low_sec == null) return 'Range unavailable';
   const low = (f.eta_low_sec / 60).toFixed(1);
   return f.eta_high_sec == null ? `Range ${low} min or later`
@@ -169,6 +170,7 @@ async function refreshForecast() {
   const json      = await res.json();
   const forecasts = json.forecasts || [];
   displayedForecasts = forecasts;
+  showForecastRange = json.show_range === true;
   const container = document.getElementById('forecast-table');
 
   if (!forecasts.length) {
@@ -269,7 +271,8 @@ function _clusterScoreColor(score) {
 
 async function loadForecastChart(cluster, group, topic, slopePerMin, currentLag) {
   const selected = displayedForecasts.find(f => f.cluster_name === cluster && f.group_id === group && f.topic === topic);
-  const band = selected?.prediction_band || [];
+  const prediction = selected?.prediction_band || [];
+  const band = showForecastRange ? prediction : [];
   document.getElementById('forecast-chart-section').style.display = 'block';
   document.getElementById('forecast-chart-title').textContent =
     `Forecast — ${cluster} / ${group} / ${topic}`;
@@ -297,12 +300,12 @@ async function loadForecastChart(cluster, group, topic, slopePerMin, currentLag)
   for (let i = 1; i <= 18; i++) {
     const seconds = i * 50;
     predLabels.push(`+${Math.round(seconds / 60)}min`);
-    predData.push(band.length ? band[i].mean : Math.round(lastLag + slopePerSec * seconds));
+    predData.push(prediction.length ? prediction[i].mean : Math.round(lastLag + slopePerSec * seconds));
   }
 
   const allLabels = [...obsLabels, ...predLabels];
   const allObs    = [...obsData,   ...Array(predLabels.length).fill(null)];
-  const allPred   = [...Array(obsLabels.length - 1).fill(null), band.length ? band[0].mean : lastLag, ...predData];
+  const allPred   = [...Array(obsLabels.length - 1).fill(null), prediction.length ? prediction[0].mean : lastLag, ...predData];
   const maxY      = Math.max(...obsData, ...predData, ...band.map(p => p.upper), CRITICAL) * 1.05;
   const bands = band.length ? [
     {label: '90% prediction lower bound', data: [...Array(obsLabels.length - 1).fill(null), ...band.map(p => p.lower)],
