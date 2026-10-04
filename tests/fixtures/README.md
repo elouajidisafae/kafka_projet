@@ -9,3 +9,5 @@
 Run `python -m pytest tests/test_golden_output.py -q`. The mutation check temporarily changes forecasting precision and verifies that the output comparison rejects it.
 
 Do not regenerate these snapshots merely to make a performance refactor pass. Investigate any difference first. Historical expected outputs remain fixed during behavior-preserving changes.
+
+`multiwindow_expected/` contains separate snapshots for a 15-minute short window, tolerance 1.0 and nominal 90% interval. They add window/interval metadata and chart points; the fixed histories retain their baseline point forecasts, while scale advice includes its range. `tests/test_multiwindow.py` checks these outputs and live/offline equivalence, including a regime change. The original snapshots still exercise the baseline path unchanged.

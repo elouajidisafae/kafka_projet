@@ -89,7 +89,7 @@ def test_rebalance_boundary(settings, state):
 
 
 def test_multiple_matches_and_pair_order(settings):
-    assert suffixes(analyze(state="EMPTY", consumer_count=0)) == ["scale", "stranded"]
+    assert suffixes(analyze(state="EMPTY", consumer_count=0)) == ["stranded"]
     settings["recommendations"]["max_per_pair"] = 1
     result = analyze(state="EMPTY", consumer_count=0, forecast={"confidence": "MEDIUM", "eta_critical_sec": 120})
     assert suffixes(result) == ["stranded"]

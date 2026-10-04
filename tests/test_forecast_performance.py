@@ -10,11 +10,11 @@ from core import lag_calculator as lag
 from core.kafka_client import GroupDescription, GroupMember
 
 
-@pytest.fixture
-def database(tmp_path, monkeypatch):
+@pytest.fixture(params=["baseline", "multiwindow"])
+def database(tmp_path, monkeypatch, request):
     monkeypatch.setattr(db, "DB_PATH", tmp_path / "history.db")
     monkeypatch.setattr(fc, "_cache", None)
-    monkeypatch.setitem(fc.CONFIG, "forecast", dict(fc.CONFIG["forecast"], persist_every_cycle=False))
+    monkeypatch.setitem(fc.CONFIG, "forecast", dict(fc.CONFIG["forecast"], method=request.param, persist_every_cycle=False))
     db.init_db()
     return db.DB_PATH
 
@@ -51,7 +51,7 @@ def test_bulk_matches_single_and_scoped(database):
     assert len(bulk) == 3
     for key, rows in bulk.items():
         assert rows == db.get_lag_history(*key)
-        assert fc.fit_forecast(rows, *key) == fc.forecast_lag(*key)
+        assert fc.fit_configured_forecast(rows, *key) == fc.forecast_lag(*key)
     assert db.get_lag_history_bulk("absent") == {}
 
 
@@ -59,7 +59,7 @@ def test_once_per_pair_then_expiry(database, monkeypatch):
     populate(4)
     clock = [100.0]
     monkeypatch.setattr(fc, "monotonic", lambda: clock[0])
-    with patch.object(fc, "fit_forecast", wraps=fc.fit_forecast) as fit:
+    with patch.object(fc, "fit_configured_forecast", wraps=fc.fit_configured_forecast) as fit:
         fc.forecast_all()
         recommender.get_recommendations()
         fc.cached_forecast_all()
@@ -71,7 +71,7 @@ def test_once_per_pair_then_expiry(database, monkeypatch):
 
 def test_concurrent_cache_miss_and_defensive_copy(database):
     populate(5)
-    with patch.object(fc, "fit_forecast", wraps=fc.fit_forecast) as fit:
+    with patch.object(fc, "fit_configured_forecast", wraps=fc.fit_configured_forecast) as fit:
         with ThreadPoolExecutor(max_workers=8) as pool:
             values = list(pool.map(lambda _: fc.forecasts_for_request(), range(16)))
         assert fit.call_count == 5

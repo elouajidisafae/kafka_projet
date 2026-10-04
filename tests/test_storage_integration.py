@@ -88,5 +88,6 @@ def test_new_defaults(tmp_path, monkeypatch):
     config_path.write_text("alerts:\n  warning_threshold: 500\n")
     monkeypatch.setattr("core.config_loader.CONFIG_PATH", config_path)
     config = load_config()
-    assert config["forecast"] == {"persist_every_cycle": True, "trend_deadband_msgs_per_sec": 0.05, "window_hours": 1}
+    assert config["forecast"] == {"persist_every_cycle": True, "trend_deadband_msgs_per_sec": 0.05, "window_hours": 1,
+                                  "method": "baseline", "short_window_minutes": 15, "agreement_tolerance": 1.0, "interval_level": .90}
     assert config["recommendations"] == {"max_per_cluster": 10, "max_per_pair": 2, "rebalance_cycles_threshold": 3, "confidence_gate": ["HIGH", "MEDIUM"]}

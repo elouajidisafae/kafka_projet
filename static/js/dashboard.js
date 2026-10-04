@@ -1,5 +1,14 @@
 let chart = null;
 let forecastChart = null;
+let displayedForecasts = [];
+
+function intervalLabel(f) {
+  if (f.method !== 'multiwindow') return '';
+  if (f.eta_low_sec == null) return 'Range unavailable';
+  const low = (f.eta_low_sec / 60).toFixed(1);
+  return f.eta_high_sec == null ? `Range ${low} min or later`
+    : `Range ${low}–${(f.eta_high_sec / 60).toFixed(1)} min`;
+}
 let activeCluster = null;
 let THRESHOLDS = { warning: 1000, critical: 10000 };
 
@@ -159,6 +168,7 @@ async function refreshForecast() {
   const res       = await fetch('/api/forecast');
   const json      = await res.json();
   const forecasts = json.forecasts || [];
+  displayedForecasts = forecasts;
   const container = document.getElementById('forecast-table');
 
   if (!forecasts.length) {
@@ -184,7 +194,7 @@ async function refreshForecast() {
         (${f.slope_per_min > 0 ? '+' : ''}${f.slope_per_min}/min)
       </span>
       <span>${etaBadge(f.eta_warning_min, 'WARNING')}</span>
-      <span>${etaBadge(f.eta_critical_min, 'CRITICAL')}</span>
+      <span>${etaBadge(f.eta_critical_min, 'CRITICAL')}<small style="display:block">${intervalLabel(f)}</small></span>
       <span style="color:#475569">→ 5min: ${fmt(f.predicted_lag_5min)}</span>
       <span style="color:#475569">→ 15min: ${fmt(f.predicted_lag_15min)}</span>
       <span>${confBadge(f.confidence, f.r_squared)}</span>
@@ -258,6 +268,8 @@ function _clusterScoreColor(score) {
 // ── Forecast chart ────────────────────────────────────────────────────────────
 
 async function loadForecastChart(cluster, group, topic, slopePerMin, currentLag) {
+  const selected = displayedForecasts.find(f => f.cluster_name === cluster && f.group_id === group && f.topic === topic);
+  const band = selected?.prediction_band || [];
   document.getElementById('forecast-chart-section').style.display = 'block';
   document.getElementById('forecast-chart-title').textContent =
     `Forecast — ${cluster} / ${group} / ${topic}`;
@@ -285,13 +297,19 @@ async function loadForecastChart(cluster, group, topic, slopePerMin, currentLag)
   for (let i = 1; i <= 18; i++) {
     const seconds = i * 50;
     predLabels.push(`+${Math.round(seconds / 60)}min`);
-    predData.push(Math.round(lastLag + slopePerSec * seconds));
+    predData.push(band.length ? band[i].mean : Math.round(lastLag + slopePerSec * seconds));
   }
 
   const allLabels = [...obsLabels, ...predLabels];
   const allObs    = [...obsData,   ...Array(predLabels.length).fill(null)];
-  const allPred   = [...Array(obsLabels.length - 1).fill(null), lastLag, ...predData];
-  const maxY      = Math.max(...predData, CRITICAL) * 1.05;
+  const allPred   = [...Array(obsLabels.length - 1).fill(null), band.length ? band[0].mean : lastLag, ...predData];
+  const maxY      = Math.max(...obsData, ...predData, ...band.map(p => p.upper), CRITICAL) * 1.05;
+  const bands = band.length ? [
+    {label: '90% prediction lower bound', data: [...Array(obsLabels.length - 1).fill(null), ...band.map(p => p.lower)],
+     borderWidth: 0, pointRadius: 0, fill: false},
+    {label: '90% prediction band (nominal)', data: [...Array(obsLabels.length - 1).fill(null), ...band.map(p => p.upper)],
+     borderWidth: 0, pointRadius: 0, backgroundColor: '#EF9F2733', fill: '-1'},
+  ] : [];
 
   if (forecastChart) forecastChart.destroy();
   forecastChart = new Chart(document.getElementById('forecast-canvas'), {
@@ -299,6 +317,7 @@ async function loadForecastChart(cluster, group, topic, slopePerMin, currentLag)
     data: {
       labels: allLabels,
       datasets: [
+        ...bands,
         {
           label: 'Observed lag',
           data: allObs,
@@ -331,7 +350,7 @@ async function loadForecastChart(cluster, group, topic, slopePerMin, currentLag)
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: { legend: { display: band.length > 0 } },
       scales: {
         x: {
           ticks: { color: '#64748b', maxTicksLimit: 10, font: { size: 11 } },

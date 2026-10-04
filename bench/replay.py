@@ -109,6 +109,8 @@ def replay(dataset, forecaster="baseline", split=None, parameters=None):
     repetitions, provenance = select_repetitions(manifest, split, candidate) if split or candidate else (manifest["repetitions"], {})
     config=deepcopy(manifest["config"])
     if split == "heldout":
+        from bench.heldout import lock_evaluation
+        lock_evaluation(dataset)
         parameters, _ = frozen_parameters()
     if parameters:
         config["forecast"].update(parameters)
@@ -142,6 +144,12 @@ def replay(dataset, forecaster="baseline", split=None, parameters=None):
         now=datetime.fromisoformat(logged_f["recorded_at"])
         f=model.fit(records,now,config["alerts"])
         parsed = {k:(int(logged_f[k]) if k=="eta_critical_sec" else float(logged_f[k])) for k in ("slope","intercept","r_squared","eta_critical_sec")}
+        if split == "smoke":
+            if forecaster != "V3" or logged_f.get("method") != "multiwindow":
+                raise ValueError("Multiwindow smoke must compare logged multiwindow against V3")
+            for name in ("slope_short", "slope_long", "eta_low_sec", "eta_high_sec"):
+                parsed[name] = float(logged_f[name]) if logged_f.get(name) else None
+            parsed.update(window_used=logged_f["window_used"], regime_change=bool(int(logged_f["regime_change"])))
         bad={k:dict(logged=v,replayed=f.get(k)) for k,v in parsed.items() if v!=f.get(k)}
         if bad:
             mismatches.append(dict(forecast_id=logged_f["id"], fields=bad, cause="unexplained"))
@@ -192,9 +200,9 @@ if __name__ == "__main__":
     parser=argparse.ArgumentParser()
     parser.add_argument("--dataset",type=Path,required=True)
     parser.add_argument("--forecaster",default="baseline")
-    parser.add_argument("--split",choices=["selection","heldout"])
+    parser.add_argument("--split",choices=["selection","heldout","smoke"])
     args=parser.parse_args()
     result=replay(args.dataset,args.forecaster,split=args.split)
     print(json.dumps(result,indent=2))
-    if args.forecaster=="baseline" and not result["passed"]:
+    if (args.forecaster=="baseline" or args.split=="smoke") and not result["passed"]:
         raise SystemExit(1)

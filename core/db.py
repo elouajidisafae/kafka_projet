@@ -122,6 +122,13 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_reco_lookup ON recommendation_log (cluster_name, group_id, topic, recorded_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_reco_recorded ON recommendation_log (recorded_at)")
         for stmt in [
+            "ALTER TABLE forecast_log ADD COLUMN method TEXT",
+            "ALTER TABLE forecast_log ADD COLUMN window_used TEXT",
+            "ALTER TABLE forecast_log ADD COLUMN slope_short REAL",
+            "ALTER TABLE forecast_log ADD COLUMN slope_long REAL",
+            "ALTER TABLE forecast_log ADD COLUMN regime_change INTEGER",
+            "ALTER TABLE forecast_log ADD COLUMN eta_low_sec REAL",
+            "ALTER TABLE forecast_log ADD COLUMN eta_high_sec REAL",
             "ALTER TABLE forecast_log ADD COLUMN input_ids_json TEXT",
             "ALTER TABLE lag_history ADD COLUMN log_end_offset INTEGER",
             "ALTER TABLE lag_history ADD COLUMN committed_offset INTEGER",
@@ -325,6 +332,12 @@ def save_forecast(forecast: dict, run_id: str | None = None, *, input_ids=None) 
         if input_ids is not None:
             conn.execute("UPDATE forecast_log SET input_ids_json=? WHERE id=?",
                          (json.dumps(input_ids), cursor.lastrowid))
+        conn.execute("""UPDATE forecast_log SET method=?, window_used=?, slope_short=?,
+                     slope_long=?, regime_change=?, eta_low_sec=?, eta_high_sec=? WHERE id=?""",
+                     (forecast.get("method", "baseline"), forecast.get("window_used"),
+                      forecast.get("slope_short"), forecast.get("slope_long"),
+                      forecast.get("regime_change"), forecast.get("eta_low_sec"),
+                      forecast.get("eta_high_sec"), cursor.lastrowid))
         conn.commit()
 
 

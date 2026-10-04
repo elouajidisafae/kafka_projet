@@ -14,7 +14,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 NOW = datetime(2026, 1, 15, 12, tzinfo=timezone.utc)
 SETTINGS = {
     "alerts": {"warning_threshold": 1000, "critical_threshold": 10000},
-    "forecast": {"window_hours": 1, "persist_every_cycle": False,
+    "forecast": {"method": "baseline", "window_hours": 1, "persist_every_cycle": False,
                  "trend_deadband_msgs_per_sec": 0.05},
     "monitor": {"refresh_interval": 5, "history_retention_days": 7},
     "recommendations": {"max_per_pair": 2, "max_per_cluster": 10,

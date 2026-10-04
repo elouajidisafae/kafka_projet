@@ -1,0 +1,48 @@
+[
+  {
+    "action": "Check consumer throughput and processing errors.",
+    "advice": "Lag is 12000 messages and not decreasing (slope -0.0 msg/min).",
+    "cluster_name": "alpha",
+    "group_id": "flat",
+    "id": "alpha-flat-orders-stalled",
+    "metrics": {
+      "current_lag": 12000,
+      "group_state": "STABLE",
+      "slope_per_min": -0.0
+    },
+    "priority": "HIGH",
+    "title": "Possible processing bottleneck",
+    "topic": "orders",
+    "type": "PERFORMANCE"
+  },
+  {
+    "action": "Restart the consumer for group 'stranded'.",
+    "advice": "2500 messages pending. Group state: EMPTY. These messages will not self-resolve.",
+    "cluster_name": "beta",
+    "group_id": "stranded",
+    "id": "beta-stranded-orders-stranded",
+    "metrics": {
+      "current_lag": 2500,
+      "group_state": "EMPTY"
+    },
+    "priority": "HIGH",
+    "title": "Stranded messages",
+    "topic": "orders",
+    "type": "AVAILABILITY"
+  },
+  {
+    "action": "Check consumer liveness and session timeout configuration.",
+    "advice": "Group has remained in PREPARING_REBALANCE for 3 consecutive collection cycles.",
+    "cluster_name": "beta",
+    "group_id": "rebalance",
+    "id": "beta-rebalance-orders-rebalance",
+    "metrics": {
+      "group_state": "PREPARING_REBALANCE",
+      "rebalance_cycles": 3
+    },
+    "priority": "MEDIUM",
+    "title": "Group rebalance not completing",
+    "topic": "orders",
+    "type": "STABILITY"
+  }
+]

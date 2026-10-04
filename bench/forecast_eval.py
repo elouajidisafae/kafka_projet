@@ -96,6 +96,8 @@ def evaluate(dataset,forecaster="baseline",source="live",plot=True,secondary=Fal
         manifest["repetitions"], provenance = select_repetitions(manifest, split, candidate)
     config = deepcopy(manifest["config"])
     if split == "heldout":
+        from bench.heldout import lock_evaluation
+        lock_evaluation(dataset)
         parameters, _ = frozen_parameters()
     if parameters:
         config["forecast"].update(parameters)
@@ -217,5 +219,11 @@ if __name__ == "__main__":
     parser.add_argument("--secondary", action="store_true", help="Write post-baseline analyses to a separate result directory")
     parser.add_argument("--split",choices=["selection","heldout"])
     args=parser.parse_args()
-    result=evaluate(args.dataset,args.forecaster,args.source,secondary=args.secondary,split=args.split)
+    if "," in args.forecaster:
+        if args.split != "heldout" or args.forecaster.split(",") != ["V0","V1","V2","V3"]:
+            parser.error("Combined comparison requires V0,V1,V2,V3 and --split heldout")
+        from bench.heldout import compare
+        result=compare(args.dataset)
+    else:
+        result=evaluate(args.dataset,args.forecaster,args.source,secondary=args.secondary,split=args.split)
     print(json.dumps(result,indent=2))

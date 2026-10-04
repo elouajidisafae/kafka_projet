@@ -1,0 +1,902 @@
+[
+  {
+    "advice_eligible": false,
+    "cluster_name": "beta",
+    "confidence": "HIGH",
+    "critical_threshold": 10000,
+    "current_lag": 1344,
+    "enough_data": true,
+    "eta_critical_min": 1490.4,
+    "eta_critical_sec": 89426,
+    "eta_high_sec": null,
+    "eta_low_sec": null,
+    "eta_warning_min": -1,
+    "eta_warning_sec": -1,
+    "group_id": "capacity",
+    "intercept": 997.1868,
+    "interval_level": 0.9,
+    "method": "multiwindow",
+    "n_points": 13,
+    "predicted_lag_15min": 1432,
+    "predicted_lag_5min": 1374,
+    "prediction_band": [
+      {
+        "lower": 1343.0707315713742,
+        "mean": 1345.5824175824177,
+        "seconds": 0,
+        "upper": 1348.0941035934613
+      },
+      {
+        "lower": 1347.898606693822,
+        "mean": 1350.4212454212457,
+        "seconds": 50,
+        "upper": 1352.9438841486692
+      },
+      {
+        "lower": 1352.726231048687,
+        "mean": 1355.2600732600736,
+        "seconds": 100,
+        "upper": 1357.7939154714602
+      },
+      {
+        "lower": 1357.553607947338,
+        "mean": 1360.0989010989013,
+        "seconds": 150,
+        "upper": 1362.6441942504646
+      },
+      {
+        "lower": 1362.380740714317,
+        "mean": 1364.9377289377292,
+        "seconds": 200,
+        "upper": 1367.4947171611414
+      },
+      {
+        "lower": 1367.2076326838628,
+        "mean": 1369.776556776557,
+        "seconds": 250,
+        "upper": 1372.3454808692513
+      },
+      {
+        "lower": 1372.03428719656,
+        "mean": 1374.6153846153848,
+        "seconds": 300,
+        "upper": 1377.1964820342096
+      },
+      {
+        "lower": 1376.8607075961131,
+        "mean": 1379.4542124542127,
+        "seconds": 350,
+        "upper": 1382.0477173123122
+      },
+      {
+        "lower": 1381.686897226248,
+        "mean": 1384.2930402930406,
+        "seconds": 400,
+        "upper": 1386.8991833598332
+      },
+      {
+        "lower": 1386.5128594277442,
+        "mean": 1389.1318681318685,
+        "seconds": 450,
+        "upper": 1391.7508768359928
+      },
+      {
+        "lower": 1391.3385975355973,
+        "mean": 1393.9706959706962,
+        "seconds": 500,
+        "upper": 1396.602794405795
+      },
+      {
+        "lower": 1396.164114876315,
+        "mean": 1398.809523809524,
+        "seconds": 550,
+        "upper": 1401.4549327427333
+      },
+      {
+        "lower": 1400.9894147653401,
+        "mean": 1403.6483516483518,
+        "seconds": 600,
+        "upper": 1406.3072885313634
+      },
+      {
+        "lower": 1405.814500504612,
+        "mean": 1408.4871794871797,
+        "seconds": 650,
+        "upper": 1411.1598584697474
+      },
+      {
+        "lower": 1410.6393753802508,
+        "mean": 1413.3260073260076,
+        "seconds": 700,
+        "upper": 1416.0126392717643
+      },
+      {
+        "lower": 1415.4640426603758,
+        "mean": 1418.1648351648355,
+        "seconds": 750,
+        "upper": 1420.8656276692952
+      },
+      {
+        "lower": 1420.2885055930492,
+        "mean": 1423.0036630036634,
+        "seconds": 800,
+        "upper": 1425.7188204142776
+      },
+      {
+        "lower": 1425.1127674043448,
+        "mean": 1427.842490842491,
+        "seconds": 850,
+        "upper": 1430.5722142806374
+      },
+      {
+        "lower": 1429.9368312965423,
+        "mean": 1432.681318681319,
+        "seconds": 900,
+        "upper": 1435.4258060660957
+      }
+    ],
+    "r_squared": 1.0,
+    "regime_change": false,
+    "slope": 0.0968,
+    "slope_long": 0.0968,
+    "slope_per_min": 5.8,
+    "slope_short": null,
+    "topic": "orders",
+    "trend": "INCREASING",
+    "warning_threshold": 1000,
+    "window_seconds": 3600,
+    "window_used": "long"
+  },
+  {
+    "advice_eligible": false,
+    "cluster_name": "alpha",
+    "confidence": "HIGH",
+    "critical_threshold": 10000,
+    "current_lag": 712,
+    "enough_data": true,
+    "eta_critical_min": 2729.7,
+    "eta_critical_sec": 163782,
+    "eta_high_sec": null,
+    "eta_low_sec": null,
+    "eta_warning_min": 84.3,
+    "eta_warning_sec": 5061,
+    "group_id": "rising",
+    "intercept": 508.8571,
+    "interval_level": 0.9,
+    "method": "multiwindow",
+    "n_points": 13,
+    "predicted_lag_15min": 764,
+    "predicted_lag_5min": 730,
+    "prediction_band": [
+      {
+        "lower": 711.165063846822,
+        "mean": 712.9890109890109,
+        "seconds": 0,
+        "upper": 714.8129581311998
+      },
+      {
+        "lower": 713.9922749904615,
+        "mean": 715.8241758241758,
+        "seconds": 50,
+        "upper": 717.65607665789
+      },
+      {
+        "lower": 716.8193040305997,
+        "mean": 718.6593406593406,
+        "seconds": 100,
+        "upper": 720.4993772880815
+      },
+      {
+        "lower": 719.6461533719015,
+        "mean": 721.4945054945055,
+        "seconds": 150,
+        "upper": 723.3428576171094
+      },
+      {
+        "lower": 722.472825428597,
+        "mean": 724.3296703296703,
+        "seconds": 200,
+        "upper": 726.1865152307436
+      },
+      {
+        "lower": 725.2993226219584,
+        "mean": 727.1648351648352,
+        "seconds": 250,
+        "upper": 729.0303477077119
+      },
+      {
+        "lower": 728.125647377866,
+        "mean": 730.0,
+        "seconds": 300,
+        "upper": 731.874352622134
+      },
+      {
+        "lower": 730.9518021244658,
+        "mean": 732.8351648351647,
+        "seconds": 350,
+        "upper": 734.7185275458637
+      },
+      {
+        "lower": 733.7777892899194,
+        "mean": 735.6703296703297,
+        "seconds": 400,
+        "upper": 737.56287005074
+      },
+      {
+        "lower": 736.6036113002483,
+        "mean": 738.5054945054944,
+        "seconds": 450,
+        "upper": 740.4073777107405
+      },
+      {
+        "lower": 739.4292705772749,
+        "mean": 741.3406593406593,
+        "seconds": 500,
+        "upper": 743.2520481040436
+      },
+      {
+        "lower": 742.2547695366563,
+        "mean": 744.1758241758241,
+        "seconds": 550,
+        "upper": 746.0968788149919
+      },
+      {
+        "lower": 745.0801105860163,
+        "mean": 747.010989010989,
+        "seconds": 600,
+        "upper": 748.9418674359616
+      },
+      {
+        "lower": 747.9052961231707,
+        "mean": 749.8461538461538,
+        "seconds": 650,
+        "upper": 751.7870115691369
+      },
+      {
+        "lower": 750.730328534449,
+        "mean": 752.6813186813187,
+        "seconds": 700,
+        "upper": 754.6323088281883
+      },
+      {
+        "lower": 753.5552101931082,
+        "mean": 755.5164835164835,
+        "seconds": 750,
+        "upper": 757.4777568398588
+      },
+      {
+        "lower": 756.3799434578407,
+        "mean": 758.3516483516484,
+        "seconds": 800,
+        "upper": 760.323353245456
+      },
+      {
+        "lower": 759.2045306713709,
+        "mean": 761.1868131868132,
+        "seconds": 850,
+        "upper": 763.1690957022555
+      },
+      {
+        "lower": 762.0289741591436,
+        "mean": 764.0219780219779,
+        "seconds": 900,
+        "upper": 766.0149818848123
+      }
+    ],
+    "r_squared": 1.0,
+    "regime_change": false,
+    "slope": 0.0567,
+    "slope_long": 0.0567,
+    "slope_per_min": 3.4,
+    "slope_short": null,
+    "topic": "orders",
+    "trend": "INCREASING",
+    "warning_threshold": 1000,
+    "window_seconds": 3600,
+    "window_used": "long"
+  },
+  {
+    "advice_eligible": false,
+    "cluster_name": "alpha",
+    "confidence": "LOW",
+    "critical_threshold": 10000,
+    "current_lag": 12000,
+    "enough_data": true,
+    "eta_critical_min": -1,
+    "eta_critical_sec": -1,
+    "eta_high_sec": 0.0,
+    "eta_low_sec": 0.0,
+    "eta_warning_min": -1,
+    "eta_warning_sec": -1,
+    "group_id": "flat",
+    "intercept": 12000.0,
+    "interval_level": 0.9,
+    "method": "multiwindow",
+    "n_points": 13,
+    "predicted_lag_15min": 12000,
+    "predicted_lag_5min": 12000,
+    "prediction_band": [
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 0,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 50,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 100,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 150,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 200,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 250,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 300,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 350,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 400,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 450,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 500,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 550,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 600,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 650,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 700,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 750,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 800,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 850,
+        "upper": 12000.000000000004
+      },
+      {
+        "lower": 11999.999999999996,
+        "mean": 12000.0,
+        "seconds": 900,
+        "upper": 12000.000000000004
+      }
+    ],
+    "r_squared": 0.0,
+    "regime_change": false,
+    "slope": -0.0,
+    "slope_long": -0.0,
+    "slope_per_min": -0.0,
+    "slope_short": null,
+    "topic": "orders",
+    "trend": "STABLE",
+    "warning_threshold": 1000,
+    "window_seconds": 3600,
+    "window_used": "long"
+  },
+  {
+    "advice_eligible": false,
+    "cluster_name": "beta",
+    "confidence": "LOW",
+    "critical_threshold": 10000,
+    "current_lag": 2500,
+    "enough_data": true,
+    "eta_critical_min": -2,
+    "eta_critical_sec": -2,
+    "eta_high_sec": null,
+    "eta_low_sec": null,
+    "eta_warning_min": -1,
+    "eta_warning_sec": -1,
+    "group_id": "stranded",
+    "intercept": 2500.0,
+    "interval_level": 0.9,
+    "method": "multiwindow",
+    "n_points": 13,
+    "predicted_lag_15min": 2499,
+    "predicted_lag_5min": 2499,
+    "prediction_band": [
+      {
+        "lower": 2499.999999999998,
+        "mean": 2499.999999999999,
+        "seconds": 0,
+        "upper": 2500.0
+      },
+      {
+        "lower": 2499.999999999998,
+        "mean": 2499.999999999999,
+        "seconds": 50,
+        "upper": 2500.0
+      },
+      {
+        "lower": 2499.999999999998,
+        "mean": 2499.999999999999,
+        "seconds": 100,
+        "upper": 2500.0
+      },
+      {
+        "lower": 2499.999999999998,
+        "mean": 2499.999999999999,
+        "seconds": 150,
+        "upper": 2500.0
+      },
+      {
+        "lower": 2499.999999999998,
+        "mean": 2499.999999999999,
+        "seconds": 200,
+        "upper": 2500.0
+      },
+      {
+        "lower": 2499.999999999998,
+        "mean": 2499.999999999999,
+        "seconds": 250,
+        "upper": 2500.0
+      },
+      {
+        "lower": 2499.999999999998,
+        "mean": 2499.999999999999,
+        "seconds": 300,
+        "upper": 2500.0
+      },
+      {
+        "lower": 2499.999999999998,
+        "mean": 2499.999999999999,
+        "seconds": 350,
+        "upper": 2500.0
+      },
+      {
+        "lower": 2499.999999999998,
+        "mean": 2499.999999999999,
+        "seconds": 400,
+        "upper": 2500.0
+      },
+      {
+        "lower": 2499.999999999998,
+        "mean": 2499.999999999999,
+        "seconds": 450,
+        "upper": 2500.0
+      },
+      {
+        "lower": 2499.999999999998,
+        "mean": 2499.999999999999,
+        "seconds": 500,
+        "upper": 2500.0
+      },
+      {
+        "lower": 2499.999999999998,
+        "mean": 2499.999999999999,
+        "seconds": 550,
+        "upper": 2500.0
+      },
+      {
+        "lower": 2499.9999999999977,
+        "mean": 2499.999999999999,
+        "seconds": 600,
+        "upper": 2500.0000000000005
+      },
+      {
+        "lower": 2499.9999999999977,
+        "mean": 2499.999999999999,
+        "seconds": 650,
+        "upper": 2500.0000000000005
+      },
+      {
+        "lower": 2499.9999999999977,
+        "mean": 2499.999999999999,
+        "seconds": 700,
+        "upper": 2500.0000000000005
+      },
+      {
+        "lower": 2499.9999999999977,
+        "mean": 2499.999999999999,
+        "seconds": 750,
+        "upper": 2500.0000000000005
+      },
+      {
+        "lower": 2499.9999999999977,
+        "mean": 2499.999999999999,
+        "seconds": 800,
+        "upper": 2500.0000000000005
+      },
+      {
+        "lower": 2499.9999999999977,
+        "mean": 2499.999999999999,
+        "seconds": 850,
+        "upper": 2500.0000000000005
+      },
+      {
+        "lower": 2499.9999999999977,
+        "mean": 2499.999999999999,
+        "seconds": 900,
+        "upper": 2500.0000000000005
+      }
+    ],
+    "r_squared": 0.0,
+    "regime_change": false,
+    "slope": -0.0,
+    "slope_long": -0.0,
+    "slope_per_min": -0.0,
+    "slope_short": null,
+    "topic": "orders",
+    "trend": "STABLE",
+    "warning_threshold": 1000,
+    "window_seconds": 3600,
+    "window_used": "long"
+  },
+  {
+    "advice_eligible": false,
+    "cluster_name": "beta",
+    "confidence": "LOW",
+    "critical_threshold": 10000,
+    "current_lag": 900,
+    "enough_data": true,
+    "eta_critical_min": 3.395093570329991e+18,
+    "eta_critical_sec": 203705614219799461888,
+    "eta_high_sec": null,
+    "eta_low_sec": null,
+    "eta_warning_min": 3.730872055307689e+16,
+    "eta_warning_sec": 2238523233184613376,
+    "group_id": "rebalance",
+    "intercept": 900.0,
+    "interval_level": 0.9,
+    "method": "multiwindow",
+    "n_points": 13,
+    "predicted_lag_15min": 899,
+    "predicted_lag_5min": 899,
+    "prediction_band": [
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999998,
+        "seconds": 0,
+        "upper": 900.0000000000003
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999998,
+        "seconds": 50,
+        "upper": 900.0000000000003
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999998,
+        "seconds": 100,
+        "upper": 900.0000000000003
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999998,
+        "seconds": 150,
+        "upper": 900.0000000000003
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999998,
+        "seconds": 200,
+        "upper": 900.0000000000003
+      },
+      {
+        "lower": 899.9999999999993,
+        "mean": 899.9999999999999,
+        "seconds": 250,
+        "upper": 900.0000000000005
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999999,
+        "seconds": 300,
+        "upper": 900.0000000000006
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999999,
+        "seconds": 350,
+        "upper": 900.0000000000006
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999999,
+        "seconds": 400,
+        "upper": 900.0000000000006
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999999,
+        "seconds": 450,
+        "upper": 900.0000000000006
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999999,
+        "seconds": 500,
+        "upper": 900.0000000000006
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999999,
+        "seconds": 550,
+        "upper": 900.0000000000006
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999999,
+        "seconds": 600,
+        "upper": 900.0000000000006
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999999,
+        "seconds": 650,
+        "upper": 900.0000000000006
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999999,
+        "seconds": 700,
+        "upper": 900.0000000000006
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999999,
+        "seconds": 750,
+        "upper": 900.0000000000006
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999999,
+        "seconds": 800,
+        "upper": 900.0000000000006
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999999,
+        "seconds": 850,
+        "upper": 900.0000000000006
+      },
+      {
+        "lower": 899.9999999999992,
+        "mean": 899.9999999999999,
+        "seconds": 900,
+        "upper": 900.0000000000006
+      }
+    ],
+    "r_squared": 0.0,
+    "regime_change": false,
+    "slope": 0.0,
+    "slope_long": 0.0,
+    "slope_per_min": 0.0,
+    "slope_short": null,
+    "topic": "orders",
+    "trend": "STABLE",
+    "warning_threshold": 1000,
+    "window_seconds": 3600,
+    "window_used": "long"
+  },
+  {
+    "advice_eligible": false,
+    "cluster_name": "alpha",
+    "confidence": "HIGH",
+    "critical_threshold": 10000,
+    "current_lag": 7092,
+    "enough_data": true,
+    "eta_critical_min": -2,
+    "eta_critical_sec": -2,
+    "eta_high_sec": null,
+    "eta_low_sec": null,
+    "eta_warning_min": -1,
+    "eta_warning_sec": -1,
+    "group_id": "falling",
+    "intercept": 7728.0,
+    "interval_level": 0.9,
+    "method": "multiwindow",
+    "n_points": 13,
+    "predicted_lag_15min": 6933,
+    "predicted_lag_5min": 7039,
+    "prediction_band": [
+      {
+        "lower": 7091.999999999994,
+        "mean": 7091.999999999999,
+        "seconds": 0,
+        "upper": 7092.000000000005
+      },
+      {
+        "lower": 7083.166666666661,
+        "mean": 7083.166666666666,
+        "seconds": 50,
+        "upper": 7083.1666666666715
+      },
+      {
+        "lower": 7074.333333333328,
+        "mean": 7074.333333333333,
+        "seconds": 100,
+        "upper": 7074.3333333333385
+      },
+      {
+        "lower": 7065.499999999994,
+        "mean": 7065.499999999999,
+        "seconds": 150,
+        "upper": 7065.500000000005
+      },
+      {
+        "lower": 7056.666666666661,
+        "mean": 7056.666666666666,
+        "seconds": 200,
+        "upper": 7056.6666666666715
+      },
+      {
+        "lower": 7047.833333333328,
+        "mean": 7047.833333333333,
+        "seconds": 250,
+        "upper": 7047.8333333333385
+      },
+      {
+        "lower": 7038.9999999999945,
+        "mean": 7039.0,
+        "seconds": 300,
+        "upper": 7039.0000000000055
+      },
+      {
+        "lower": 7030.166666666661,
+        "mean": 7030.166666666666,
+        "seconds": 350,
+        "upper": 7030.1666666666715
+      },
+      {
+        "lower": 7021.333333333328,
+        "mean": 7021.333333333333,
+        "seconds": 400,
+        "upper": 7021.3333333333385
+      },
+      {
+        "lower": 7012.4999999999945,
+        "mean": 7012.5,
+        "seconds": 450,
+        "upper": 7012.5000000000055
+      },
+      {
+        "lower": 7003.666666666661,
+        "mean": 7003.666666666666,
+        "seconds": 500,
+        "upper": 7003.6666666666715
+      },
+      {
+        "lower": 6994.833333333328,
+        "mean": 6994.833333333333,
+        "seconds": 550,
+        "upper": 6994.8333333333385
+      },
+      {
+        "lower": 6985.9999999999945,
+        "mean": 6986.0,
+        "seconds": 600,
+        "upper": 6986.0000000000055
+      },
+      {
+        "lower": 6977.166666666661,
+        "mean": 6977.166666666666,
+        "seconds": 650,
+        "upper": 6977.1666666666715
+      },
+      {
+        "lower": 6968.333333333328,
+        "mean": 6968.333333333333,
+        "seconds": 700,
+        "upper": 6968.3333333333385
+      },
+      {
+        "lower": 6959.4999999999945,
+        "mean": 6959.5,
+        "seconds": 750,
+        "upper": 6959.5000000000055
+      },
+      {
+        "lower": 6950.666666666661,
+        "mean": 6950.666666666666,
+        "seconds": 800,
+        "upper": 6950.6666666666715
+      },
+      {
+        "lower": 6941.833333333328,
+        "mean": 6941.833333333333,
+        "seconds": 850,
+        "upper": 6941.8333333333385
+      },
+      {
+        "lower": 6932.9999999999945,
+        "mean": 6933.0,
+        "seconds": 900,
+        "upper": 6933.0000000000055
+      }
+    ],
+    "r_squared": 1.0,
+    "regime_change": false,
+    "slope": -0.1767,
+    "slope_long": -0.1767,
+    "slope_per_min": -10.6,
+    "slope_short": null,
+    "topic": "orders",
+    "trend": "DECREASING",
+    "warning_threshold": 1000,
+    "window_seconds": 3600,
+    "window_used": "long"
+  },
+  {
+    "current_lag": 202,
+    "enough_data": false,
+    "method": "multiwindow",
+    "reason": "Only 3 points (minimum 5)"
+  },
+  {
+    "current_lag": 0,
+    "enough_data": false,
+    "method": "multiwindow",
+    "reason": "Only 0 points (minimum 5)"
+  }
+]

@@ -27,7 +27,20 @@ def forecast_lag(
     if window_hours is None:
         window_hours = CONFIG.get("forecast", {}).get("window_hours", FORECAST_WINDOW_HOURS)
     records = get_lag_history(cluster_name, group_id, topic, last_hours=window_hours)
-    return fit_forecast(records, cluster_name, group_id, topic)
+    return fit_configured_forecast(records, cluster_name, group_id, topic)
+
+
+def fit_configured_forecast(records, cluster_name, group_id, topic):
+    """Dispatch live forecasts while retaining the original V0 fitter."""
+    settings = CONFIG.get("forecast", {})
+    method = settings.get("method", "baseline")
+    if method == "baseline":
+        return fit_forecast(records, cluster_name, group_id, topic)
+    if method != "multiwindow":
+        raise ValueError(f"Unknown forecast method: {method}")
+    from .multiwindow import fit
+    return fit(records, lambda rows: fit_forecast(rows, cluster_name, group_id, topic),
+               settings, CONFIG["alerts"]["critical_threshold"])
 
 
 def fit_forecast(records: list[dict], cluster_name: str, group_id: str, topic: str) -> dict:
@@ -166,7 +179,7 @@ def _compute(cluster_name=None):
             continue
         started = perf_counter()
         records = history.get(key, [])
-        forecasts[key] = fit_forecast(records, *key)
+        forecasts[key] = fit_configured_forecast(records, *key)
         inputs[key] = [r["id"] for r in records] if CONFIG.get("forecast", {}).get("record_inputs", False) else None
         durations[key[0]] = durations.get(key[0], 0.0) + perf_counter() - started
         counts[key[0]] = counts.get(key[0], 0) + 1

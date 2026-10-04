@@ -58,3 +58,9 @@ Acceptance requires at least 99% exact replay with no unexplained mismatches, ra
 ## Offline model selection
 
 Use `python bench/forecast_eval.py --dataset <path> --secondary` for the labelled post-baseline analyses. Use `python bench/select_forecaster.py --dataset <path>` to evaluate the nine multi-window settings on wave 1. Review and commit the generated `bench/forecaster_params.yml` before held-out evaluation; candidate replay requires an explicit split. The sealed recording and baseline fitter remain unchanged.
+
+Then run `python bench/forecast_eval.py --dataset <path> --forecaster V0,V1,V2,V3 --split heldout`. Results under `heldout/` include paired per-repetition differences, interval coverage and finite width. Missing comparisons remain null; open-ended intervals are excluded from width. Parameters and analysis source hashes freeze on first execution; repeats require identical results. Preserve that source version before further integration changes.
+
+Generate the three held-out figures and plotted CSVs with `python bench/heldout_figures.py --dataset <path>`. Validate live integration separately with `python bench/run_forecast_validation.py --arm smoke --profile smoke --reps 1 --waves 1 --duration-min 5 --method multiwindow`; this uses committed parameters and replays V3. Smoke data is not predictive-performance evidence.
+
+Multiwindow smoke replay runs in the recording container to compare unrounded interval endpoints exactly. Cross-platform numerical libraries can differ in their last floating-point digits; `replay-environment.json` records versions. Keep the container available until smoke validation finishes.

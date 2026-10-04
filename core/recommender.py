@@ -54,6 +54,7 @@ def analyze_row(cluster, group_id, topic, current_lag, state, trend, forecast,
     settings = CONFIG.get("recommendations", {})
     confidence = forecast.get("confidence")
     gate = confidence in {"HIGH", "MEDIUM"} and confidence in settings.get("confidence_gate", ["HIGH", "MEDIUM"])
+    gate = gate and forecast.get("advice_eligible", True)
     slope_per_min = forecast.get("slope_per_min")
     r_squared = forecast.get("r_squared")
     eta_critical_min = forecast.get("eta_critical_min")
@@ -70,10 +71,18 @@ def analyze_row(cluster, group_id, topic, current_lag, state, trend, forecast,
                            title=title, advice=advice, action=action,
                            metrics={key: values[key] for key in keys}))
 
-    if (trend == "INCREASING" and gate and topology_known and consumer_count < partition_count
+    interval_text = f"R2={r_squared}"
+    if forecast.get("method") == "multiwindow":
+        low, high = forecast.get("eta_low_sec"), forecast.get("eta_high_sec")
+        interval_text = ("range unavailable" if low is None else
+                         f"range {low / 60:.1f} min or later" if high is None else
+                         f"range {low / 60:.1f}–{high / 60:.1f} min")
+
+    if (trend == "INCREASING" and gate and state not in {"EMPTY", "DEAD"}
+            and topology_known and consumer_count < partition_count
             and (forecast.get("eta_critical_sec") or 0) > 0):
         emit("scale", "PERFORMANCE", confidence, "Scale consumer group",
-             f"Lag is rising at {slope_per_min} msg/min. CRITICAL threshold projected in ~{eta_critical_min} min (R2={r_squared}).",
+             f"Lag is rising at {slope_per_min} msg/min. CRITICAL threshold projected in ~{eta_critical_min} min ({interval_text}).",
              f"Increase consumer instances (current: {consumer_count}, partitions: {partition_count}).",
              ("slope_per_min", "r_squared", "confidence", "eta_critical_min", "consumer_count", "partition_count"))
 

@@ -17,6 +17,10 @@ monitor:
   history_retention_days: 7
   refresh_interval: 5
 forecast:
+  method: multiwindow
+  short_window_minutes: 15
+  agreement_tolerance: 1.0
+  interval_level: 0.90
   persist_every_cycle: true
   trend_deadband_msgs_per_sec: 0.05
   window_hours: 1

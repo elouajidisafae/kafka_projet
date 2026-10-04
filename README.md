@@ -33,6 +33,9 @@ Set brokers in `config.yml` under `clusters`. Key settings:
 | `alerts.warning_threshold` / `critical_threshold` | 1000 / 10000 | Lag thresholds in messages |
 | `monitor.refresh_interval` | 5 | Collection interval in seconds |
 | `forecast.window_hours` | 1 | History used for linear extrapolation |
+| `forecast.method` | baseline | `multiwindow` selects a short or long fit; enabled in the supplied config |
+| `forecast.short_window_minutes` / `agreement_tolerance` | 15 / 1.0 | Short-window length and relative slope disagreement needed to select it |
+| `forecast.interval_level` | 0.90 | Fixed nominal prediction level for multiwindow ranges and bands |
 | `forecast.trend_deadband_msgs_per_sec` | 0.05 | Slopes within this range are stable |
 | `forecast.persist_every_cycle` | true | Save forecasts; API requests also save cached results |
 | `recommendations.max_per_pair` / `max_per_cluster` | 2 / 10 | Display limits; HIGH priority bypasses the cluster limit |
@@ -42,6 +45,8 @@ Set brokers in `config.yml` under `clusters`. Key settings:
 | `retention.prune_every_cycles` / `prune_batch_size` | 60 / 5000 | Cleanup frequency and maximum rows per transaction |
 
 Scaling advice requires rising lag, a positive critical ETA and spare partitions. Topology advice flags consumers at partition capacity. Unknown membership suppresses both; other rules cover stranded messages, stalled processing and persistent rebalancing.
+
+Multiwindow advice also requires a rising short-window trend. Empty/dead groups receive restart advice instead of scaling advice. Interval ranges are estimates: held-out coverage was below the nominal 90%; an open upper bound appears as “or later.” Set `method: baseline` to reproduce the original forecast.
 
 `/metrics` exposes collection/forecast duration, monitored pairs and collection overruns by cluster. Cycles never overlap. Retention covers lag, forecasts and recommendation matches, including those hidden by display limits.
 

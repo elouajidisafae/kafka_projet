@@ -45,10 +45,12 @@ def require_approval_receipts():
             raise ValueError(f"{name} result does not cover the current configuration")
 
 
-def run(arm="baseline",profile="baseline",reps=10,waves=2,duration_min=60,only_patterns=None):
+def run(arm="baseline",profile="baseline",reps=10,waves=2,duration_min=60,only_patterns=None,method=None):
     import psutil
     if reps<1 or waves<1 or duration_min<=0:
         raise ValueError("Positive repetition counts and duration required")
+    if method is not None and (method != "multiwindow" or profile != "smoke" or arm == "baseline"):
+        raise ValueError("Method override is supported only for multiwindow smoke")
     if arm=="baseline" and (profile!="baseline" or duration_min!=60 or reps!=10 or waves!=2):
         raise ValueError("Baseline recording requires 10 reps, 2 waves and 60 minutes per wave")
     dirty=capture(["git","status","--porcelain"])
@@ -61,6 +63,11 @@ def run(arm="baseline",profile="baseline",reps=10,waves=2,duration_min=60,only_p
     dataset.mkdir(parents=True)
     config_path=ROOT/("config.bench.smoke.yml" if profile=="smoke" else "config.bench.yml")
     config=yaml.safe_load(config_path.read_text())
+    if method:
+        from bench.splits import frozen_parameters
+        params, provenance = frozen_parameters()
+        config["forecast"].update({k:params[k] for k in ("short_window_minutes", "agreement_tolerance", "interval_level")})
+        config["forecast"]["method"] = method
     patterns=yaml.safe_load((ROOT/"bench/patterns.yml").read_text())[profile]
     if only_patterns:
         patterns={k:v for k,v in patterns.items() if k in only_patterns}
@@ -85,6 +92,9 @@ def run(arm="baseline",profile="baseline",reps=10,waves=2,duration_min=60,only_p
         host=dict(os=platform.platform(),cpu=platform.processor(),cores=os.cpu_count(),ram_bytes=psutil.virtual_memory().total,python=sys.version,docker=capture(["docker","version","--format","{{.Server.Version}}"]),kafka_image="confluentinc/cp-kafka:7.6.0"),
         repetitions=repetitions,requested_duration_seconds=duration_min*60)
     write_json(dataset/"manifest.json",manifest)
+    if method:
+        manifest["forecaster_provenance"] = provenance
+        write_json(dataset/"manifest.json",manifest)
     env=dict(os.environ,KHM_RUN_ID=run_id,KHM_BENCH_CONFIG=str(dataset/"config.bench.yml"))
     processes=[]
     handles=[]
@@ -177,11 +187,46 @@ def run(arm="baseline",profile="baseline",reps=10,waves=2,duration_min=60,only_p
         command(COMPOSE+["cp","khm:/tmp/khm-export.db",str(backup)],env=env)
         from bench.export_run import export
         export(run_id,backup,dataset)
+    return validate_recording(dataset)
+
+
+def replay_in_container(dataset, manifest):
+    """Check raw interval floats in the same numerical environment as recording."""
+    run_id = manifest["run_id"]
+    env = dict(os.environ, KHM_RUN_ID=run_id, KHM_BENCH_CONFIG=str(dataset/"config.bench.yml"))
+    target = "/tmp/khm-smoke-replay-"+hashlib.sha256(run_id.encode()).hexdigest()[:16]
+    command(COMPOSE+["exec", "-T", "khm", "mkdir", "-p", target], env=env)
+    command(COMPOSE+["cp", str(dataset)+"/.", "khm:"+target], env=env)
+    command(COMPOSE+["exec", "-T", "khm", "python", "bench/replay.py", "--dataset", target,
+                    "--forecaster", "V3", "--split", "smoke"], env=env)
+    output = ROOT/"bench/results"/run_id/"smoke/V3"
+    output.mkdir(parents=True, exist_ok=True)
+    command(COMPOSE+["cp", f"khm:/app/bench/results/{run_id}/smoke/V3/.", str(output)], env=env)
+    versions = subprocess.check_output(COMPOSE+["exec", "-T", "khm", "python", "-c",
+        "import sys,numpy,scipy,json; print(json.dumps(dict(python=sys.version,numpy=numpy.__version__,scipy=scipy.__version__)))"],
+        cwd=ROOT, env=env, text=True)
+    write_json(output/"replay-environment.json", json.loads(versions))
+    return json.loads((output/"fidelity.json").read_text())
+
+
+def validate_recording(dataset):
+    """Resume checks on a sealed recording without repeating the workload."""
+    from bench.common import verify
+    dataset = Path(dataset).resolve()
+    manifest = verify(dataset)
+    run_id, profile = manifest["run_id"], manifest["profile"]
+    repetitions = manifest["repetitions"]
+    method = manifest["config"]["forecast"].get("method") == "multiwindow"
+    if method and profile != "smoke":
+        raise ValueError("Container V3 validation is restricted to smoke recordings")
     from bench.replay import replay
     from bench.forecast_eval import evaluate
-    fidelity=replay(dataset)
-    summary=evaluate(dataset)
-    print(f"Dataset: {dataset}\nFidelity: {fidelity['passed']}\nEvaluation: bench/results/{run_id}/baseline/summary.json",flush=True)
+    model = "V3" if method else "baseline"
+    split = "smoke" if method else None
+    fidelity=replay_in_container(dataset, manifest) if method else replay(dataset, model, split=split)
+    summary=evaluate(dataset, model, source="replay" if method else "live", split=split)
+    result_path = f"smoke/{model}" if method else model
+    print(f"Dataset: {dataset}\nFidelity: {fidelity['passed']}\nEvaluation: bench/results/{run_id}/{result_path}/summary.json",flush=True)
     if not fidelity["passed"]:
         raise RuntimeError("Replay fidelity failed; inspect mismatch lists")
     if profile=="smoke":
@@ -196,7 +241,8 @@ def run(arm="baseline",profile="baseline",reps=10,waves=2,duration_min=60,only_p
         write_json(ROOT/"bench/results"/run_id/"smoke-checks.json",checks)
         if not passed:
             raise RuntimeError("Smoke pattern/rate/commit/truth checks failed")
-        write_json(ROOT/"bench/results/smoke-passed.json",dict(passed=True,run_id=run_id,fingerprint=manifest["configuration_fingerprint"]))
+        receipt = "multiwindow-smoke-passed.json" if method else "smoke-passed.json"
+        write_json(ROOT/"bench/results"/receipt,dict(passed=True,run_id=run_id,fingerprint=manifest["configuration_fingerprint"], config_sha256=manifest["config_sha256"]))
     return dataset,summary
 
 
@@ -207,5 +253,6 @@ if __name__ == "__main__":
     parser.add_argument("--reps",type=int,default=10)
     parser.add_argument("--waves",type=int,default=2)
     parser.add_argument("--duration-min",type=float,default=60)
+    parser.add_argument("--method",choices=["multiwindow"])
     args=parser.parse_args()
-    run(args.arm,args.profile,args.reps,args.waves,args.duration_min)
+    run(args.arm,args.profile,args.reps,args.waves,args.duration_min,method=args.method)

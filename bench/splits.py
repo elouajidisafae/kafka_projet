@@ -17,7 +17,9 @@ def frozen_parameters(root=ROOT):
         commit = subprocess.check_output(["git","log","-1","--format=%H","--",relative],cwd=root,text=True).strip()
     except subprocess.CalledProcessError as exc:
         raise ValueError("Forecaster parameters must be committed before held-out evaluation") from exc
-    if committed != path.read_bytes():
+    # Git may check out LF blobs as CRLF on Windows. Hash the committed blob,
+    # while allowing only that mechanical checkout conversion in the worktree.
+    if committed.replace(b"\r\n", b"\n") != path.read_bytes().replace(b"\r\n", b"\n"):
         raise ValueError("Forecaster parameters differ from their committed version")
     params = yaml.safe_load(committed)
     if params.get("interval_level") != .90:
@@ -26,6 +28,10 @@ def frozen_parameters(root=ROOT):
 
 
 def select_repetitions(manifest, split, candidate=False, root=ROOT):
+    if split == "smoke":
+        if manifest.get("profile") != "smoke" or manifest.get("config", {}).get("forecast", {}).get("method") != "multiwindow":
+            raise ValueError("Smoke replay requires a multiwindow smoke recording")
+        return manifest["repetitions"], {}
     if candidate and split not in {"selection", "heldout"}:
         raise ValueError("Candidate evaluation requires an explicit selection or heldout split")
     provenance = {}
