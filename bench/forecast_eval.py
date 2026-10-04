@@ -85,16 +85,30 @@ def publication_eligible(manifest, checks, truth_fraction, fidelity):
         and not fidelity.get("recommendation_mismatches"))
 
 
-def evaluate(dataset,forecaster="baseline",source="live",plot=True):
+def evaluate(dataset,forecaster="baseline",source="live",plot=True,secondary=False,split=None,parameters=None):
     dataset=Path(dataset)
     manifest=verify(dataset)
+    from copy import deepcopy
+    from bench.splits import select_repetitions, frozen_parameters
+    candidate = forecaster not in {"baseline", "V0"}
+    provenance = {}
+    if split or candidate:
+        manifest["repetitions"], provenance = select_repetitions(manifest, split, candidate)
+    config = deepcopy(manifest["config"])
+    if split == "heldout":
+        parameters, _ = frozen_parameters()
+    if parameters:
+        config["forecast"].update(parameters)
     history=read_csv(dataset/"lag_history.csv")
     from bench.replay import load_forecaster, unique_forecast_rows
-    model_name=load_forecaster(forecaster,manifest["config"]).name
-    output=ROOT/"bench/results"/manifest["run_id"]/model_name
+    model_name=load_forecaster(forecaster,config).name
+    output=ROOT/"bench/results"/manifest["run_id"]
+    if split:
+        output=output/split
+    output=output/model_name
     output.mkdir(parents=True,exist_ok=True)
     if source=="live":
-        if forecaster!="baseline":
+        if forecaster not in {"baseline","V0"}:
             raise ValueError("Live logs describe baseline only")
         forecasts=read_csv(dataset/"forecast_log.csv")
         recommendations=read_csv(dataset/"recommendation_log.csv")
@@ -104,10 +118,17 @@ def evaluate(dataset,forecaster="baseline",source="live",plot=True):
     # Browser polls must not give repeated observations extra statistical weight.
     original_forecasts = read_csv(dataset/"forecast_log.csv")
     canonical_ids = {r["id"] for r in unique_forecast_rows(original_forecasts)}
+    groups = {r["group_id"] for r in manifest["repetitions"]}
+    forecasts = [f for f in forecasts if f["group_id"] in groups]
     original_count = len(forecasts)
     forecasts = [f for f in forecasts if str(f["id"]) in canonical_ids]
     if source != "live":
         recommendations = [r for r in recommendations if str(r["forecast_id"]) in canonical_ids]
+    if secondary and not split:
+        output = ROOT/"bench/results"/manifest["run_id"]/(model_name+"-secondary")
+        output.mkdir(parents=True, exist_ok=True)
+    secondary_rows = []
+    secondary_grouped = defaultdict(lambda: defaultdict(list))
     per_rep=[]
     pairs=[]
     grouped=defaultdict(lambda:defaultdict(list))
@@ -116,10 +137,22 @@ def evaluate(dataset,forecaster="baseline",source="live",plot=True):
     for rep in manifest["repetitions"]:
         select=lambda rows:[r for r in rows if r["group_id"]==rep["group_id"] and r["topic"]==rep["topic"]]
         logs=[json.loads(line) for line in (dataset/"generator"/(rep["group_id"]+".jsonl")).read_text().splitlines()]
+        metadata = next((r for r in logs if r.get("kind") == "metadata"), None)
         logs=[r for r in logs if "produced" in r]
         start, end = timestamp(logs[0]["timestamp"]), timestamp(logs[-1]["timestamp"])
         within = lambda rows: [r for r in select(rows) if start <= timestamp(r["recorded_at"]) <= end]
         metrics,rep_pairs,truth,independent=score_rep(rep,within(history),within(forecasts),within(recommendations),logs,manifest["config"]["alerts"]["critical_threshold"])
+        if secondary:
+            from bench.secondary import secondary_metrics
+            if metadata is None:
+                raise ValueError("Secondary phase analysis requires generator metadata")
+            values = secondary_metrics(rep, within(history), within(forecasts), within(recommendations),
+                                       metadata, manifest["config"]["alerts"]["warning_threshold"],
+                                       manifest["config"]["alerts"]["critical_threshold"])
+            for name, value in values.items():
+                secondary_rows.append(dict(analysis_class="secondary", rep=rep["group_id"],
+                                           pattern=rep["pattern"], metric=name, value=value))
+                secondary_grouped[rep["pattern"]][name].append(value)
         pairs.extend(rep_pairs)
         for name,value in metrics.items():
             per_rep.append(dict(rep=rep["group_id"],pattern=rep["pattern"],metric=name,value=value))
@@ -138,7 +171,7 @@ def evaluate(dataset,forecaster="baseline",source="live",plot=True):
     fidelity_path=ROOT/"bench/results"/manifest["run_id"]/"baseline"/"fidelity.json"
     fidelity=json.loads(fidelity_path.read_text()) if fidelity_path.exists() else {}
     summary=dict(run_id=manifest["run_id"],forecaster=forecaster,source=source,smoke=manifest["profile"]=="smoke",
-        publishable=publication_eligible(manifest,checks,truth_fraction,fidelity),
+        publishable=not candidate and split is None and publication_eligible(manifest,checks,truth_fraction,fidelity),
         forecast_sampling="earliest persisted row per pair and ordered input IDs",
         forecast_rows=original_count, unique_forecast_observations=len(forecasts),
         resolution_floor_seconds=interval,error_sign="positive means predicted later than reality",
@@ -147,6 +180,15 @@ def evaluate(dataset,forecaster="baseline",source="live",plot=True):
         repetitions=checks,truth_match_fraction=truth_fraction,
         truth_outliers=[r["rep"] for r in breaching if not r["truth_within_interval"]],
         calibration_failures=[r["rep"] for r in checks if r["calibration_failure"]])
+    summary.update(split=split, repetition_ids=sorted(groups), **provenance)
+    if secondary:
+        summary["analysis_class"] = "secondary"
+        summary["secondary"] = dict(analysis_class="secondary",
+            repetition_ids=[r["group_id"] for r in manifest["repetitions"]],
+            patterns={pattern:{name:quantiles(values) for name,values in metrics.items()}
+                      for pattern,metrics in secondary_grouped.items()})
+        write_csv(output/"secondary_per_rep.csv", secondary_rows,
+                  ["analysis_class","rep","pattern","metric","value"])
     write_json(output/"summary.json",summary)
     write_csv(output/"per_rep.csv",per_rep,["rep","pattern","metric","value"])
     write_csv(output/"pairs.csv",pairs,["rep","pattern","forecast_id","forecast_time","truth","error_seconds","horizon_seconds","confidence"])
@@ -172,6 +214,8 @@ if __name__ == "__main__":
     parser.add_argument("--dataset",type=Path,required=True)
     parser.add_argument("--forecaster",default="baseline")
     parser.add_argument("--source",choices=["live","replay"],default="live")
+    parser.add_argument("--secondary", action="store_true", help="Write post-baseline analyses to a separate result directory")
+    parser.add_argument("--split",choices=["selection","heldout"])
     args=parser.parse_args()
-    result=evaluate(args.dataset,args.forecaster,args.source)
+    result=evaluate(args.dataset,args.forecaster,args.source,secondary=args.secondary,split=args.split)
     print(json.dumps(result,indent=2))

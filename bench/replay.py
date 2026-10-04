@@ -42,8 +42,11 @@ class Baseline:
 
 
 def load_forecaster(name, config):
-    if name == "baseline":
+    if name in {"baseline", "V0"}:
         return Baseline(config)
+    if name in {"V1", "V2", "V3"}:
+        from bench import variants
+        return getattr(variants, name)(config)
     # Explicit module:factory plug-in, returning the Forecaster protocol.
     module, factory = name.split(":",1)
     return getattr(importlib.import_module(module),factory)(config)
@@ -97,10 +100,18 @@ def recommendation_observations(logged, recs):
     return identities, observed
 
 
-def replay(dataset, forecaster="baseline"):
+def replay(dataset, forecaster="baseline", split=None, parameters=None):
     dataset=Path(dataset)
     manifest=verify(dataset)
-    config=manifest["config"]
+    from copy import deepcopy
+    from bench.splits import select_repetitions, frozen_parameters
+    candidate = forecaster not in {"baseline", "V0"}
+    repetitions, provenance = select_repetitions(manifest, split, candidate) if split or candidate else (manifest["repetitions"], {})
+    config=deepcopy(manifest["config"])
+    if split == "heldout":
+        parameters, _ = frozen_parameters()
+    if parameters:
+        config["forecast"].update(parameters)
     model=load_forecaster(forecaster,config)
     history=[history_row(r) for r in read_csv(dataset/"lag_history.csv")]
     by_id={r["id"]:r for r in history}
@@ -109,6 +120,9 @@ def replay(dataset, forecaster="baseline"):
         grouped[(row["cluster_name"],row["group_id"],row["topic"])].append(row)
     logged=read_csv(dataset/"forecast_log.csv")
     recs=read_csv(dataset/"recommendation_log.csv")
+    groups = {r["group_id"] for r in repetitions}
+    logged = [r for r in logged if r["group_id"] in groups]
+    recs = [r for r in recs if r["group_id"] in groups]
     identities, observed = recommendation_observations(logged, recs)
     checked_recommendations = {}
     from core import recommender
@@ -135,6 +149,8 @@ def replay(dataset, forecaster="baseline"):
         with configured(recommender,config):
             rules=recommender.analyze_row(*key,row["total_lag"],row["group_state"],f.get("trend"),f,
                 consumer_count=row.get("consumer_count"),partition_count=row.get("partition_count"), apply_cap=False)
+        if not f.get("advice_eligible", True):
+            rules = [r for r in rules if r["id"].rsplit("-",1)[-1] not in {"scale","topology"}]
         relevant=[r for r in rules if r["id"].rsplit("-",1)[-1] in {"scale","topology"}]
         expected={(r["id"].rsplit("-",1)[-1],r["priority"]) for r in relevant}
         identity = identities[logged_f["id"]]
@@ -159,9 +175,12 @@ def replay(dataset, forecaster="baseline"):
         repeated_input_rows=count-len(checked_recommendations),
         recommendation_comparison="unique pair and ordered input IDs; all forecast rows checked numerically",
         forecast_mismatches=mismatches,recommendation_mismatches=rec_mismatches,
-        baseline_fidelity_required=forecaster=="baseline")
+        baseline_fidelity_required=not candidate, split=split, repetition_ids=sorted(groups), **provenance)
     result["passed"] = not mismatches and not rec_mismatches
-    out=ROOT/"bench/results"/manifest["run_id"]/model.name
+    out=ROOT/"bench/results"/manifest["run_id"]
+    if split:
+        out=out/split
+    out=out/model.name
     out.mkdir(parents=True,exist_ok=True)
     write_json(out/"fidelity.json",result)
     write_json(out/"replay.json",outputs)
@@ -173,8 +192,9 @@ if __name__ == "__main__":
     parser=argparse.ArgumentParser()
     parser.add_argument("--dataset",type=Path,required=True)
     parser.add_argument("--forecaster",default="baseline")
+    parser.add_argument("--split",choices=["selection","heldout"])
     args=parser.parse_args()
-    result=replay(args.dataset,args.forecaster)
+    result=replay(args.dataset,args.forecaster,split=args.split)
     print(json.dumps(result,indent=2))
     if args.forecaster=="baseline" and not result["passed"]:
         raise SystemExit(1)

@@ -1,0 +1,6 @@
+agreement_tolerance: 1.0
+dataset: baseline-20261001T111043363413Z
+interval_level: 0.9
+selection_report_sha256: f2c9132c31387f96020a7934fcf4ca5099f6dd9ee886222c117d3fdb703a03e3
+selection_split: wave_1
+short_window_minutes: 15

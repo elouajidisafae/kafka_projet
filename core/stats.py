@@ -8,19 +8,8 @@ Calcule :
 - Evolution du lag sur les dernières 24h (série temporelle)
 - Comparaison inter-clusters
 """
-import sqlite3
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from .config_loader import CONFIG
-from .db import utc_now_iso
-
-DB_PATH = Path(__file__).parent.parent / "lag_history.db"
-
-
-def _get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    return conn
+from .db import utc_now_iso, _get_connection
 
 
 def get_cluster_summary() -> list[dict]:

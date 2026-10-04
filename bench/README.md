@@ -54,3 +54,7 @@ Replay checks every numerical forecast and compares recommendation evidence per 
 Metrics are computed per repetition, then summarized as median [Q1, Q3]. Errors use forecast-log timestamps; positive error means a late prediction. Missing values remain null. Scoring covers only each workload's lifetime and reports errors by horizon, missed warnings, advice lead time, confidence, false alarms and crossing-time agreement.
 
 Acceptance requires at least 99% exact replay with no unexplained mismatches, rate drift at most 5%, commit gaps at most one second, and crossing-time agreement within five seconds for at least 95% of breaching repetitions. Flat-high controls must not cross the critical threshold. Prediction errors, false warnings and retained outliers remain results to report, even when acceptance passes.
+
+## Offline model selection
+
+Use `python bench/forecast_eval.py --dataset <path> --secondary` for the labelled post-baseline analyses. Use `python bench/select_forecaster.py --dataset <path>` to evaluate the nine multi-window settings on wave 1. Review and commit the generated `bench/forecaster_params.yml` before held-out evaluation; candidate replay requires an explicit split. The sealed recording and baseline fitter remain unchanged.
