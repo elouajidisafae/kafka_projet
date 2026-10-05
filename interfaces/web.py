@@ -69,6 +69,9 @@ def _background_collector():
             # Calcul du Health Score global
             global _last_health_score
             _last_health_score = compute_health_score(results)
+            from core.timing import record_cycle
+            for cluster in CONFIG["clusters"]:
+                record_cycle(cluster["name"])
             print(f"[health] Global score: {_last_health_score['score']}/100 ({_last_health_score['grade']})")
         except Exception as e:
             print(f"[collector] Error: {e}")
@@ -156,8 +159,9 @@ async def save_config(request: Request):
             current = {}
 
         # Met à jour uniquement les sections modifiables
-        current["alerts"]  = body.get("alerts",  current.get("alerts", {}))
-        current["monitor"] = body.get("monitor", current.get("monitor", {}))
+        # Preserve options not exposed by the form, including group_topic_match.
+        current["alerts"] = {**current.get("alerts", {}), **body.get("alerts", {})}
+        current["monitor"] = {**current.get("monitor", {}), **body.get("monitor", {})}
         current["exclude_topics"] = body.get("exclude_topics", [])
         current["exclude_groups"] = body.get("exclude_groups", [])
 
@@ -173,7 +177,7 @@ async def save_config(request: Request):
         audit.log_event(
             event_type="CONFIG_CHANGE",
             severity="INFO",
-            message="Configuration mise à jour via l'interface web.",
+            message="Configuration updated through the web interface.",
             details=body
         )
 
@@ -222,13 +226,13 @@ def api_audit(limit: int = 100):
 def metrics():
     rows = get_latest_per_group()
     lines = []
-    lines.append("# HELP kafka_consumer_lag Nombre de messages en attente")
+    lines.append("# HELP kafka_consumer_lag Pending messages")
     lines.append("# TYPE kafka_consumer_lag gauge")
     for row in rows:
         if row["total_lag"] >= 0:
             label = f'cluster="{row["cluster_name"]}",group="{row["group_id"]}",topic="{row["topic"]}"'
             lines.append(f"kafka_consumer_lag{{{label}}} {row['total_lag']}")
-    lines.append("# HELP kafka_consumer_status Statut (0=OK 1=WARNING 2=CRITICAL)")
+    lines.append("# HELP kafka_consumer_status Status (0=OK 1=WARNING 2=CRITICAL)")
     lines.append("# TYPE kafka_consumer_status gauge")
     status_map = {"OK": 0, "WARNING": 1, "CRITICAL": 2, "ERROR": -1}
     for row in rows:
@@ -236,6 +240,10 @@ def metrics():
         lines.append(f"kafka_consumer_status{{{label}}} {status_map.get(row['status'], -1)}")
     from core.timing import prometheus_lines
     lines.extend(prometheus_lines())
+    lines.append("# HELP khm_health_score Normalised health score; absent before first collection")
+    lines.append("# TYPE khm_health_score gauge")
+    if _last_health_score:
+        lines.append(f'khm_health_score {_last_health_score["score"]}')
     return "\n".join(lines)
 
 

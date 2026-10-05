@@ -4,13 +4,7 @@ alerts:
 clusters:
 - bootstrap_servers: kafka:29092
   color: teal
-  name: dev
-- bootstrap_servers: kafka:29092
-  color: yellow
-  name: staging
-- bootstrap_servers: kafka:29092
-  color: red
-  name: production
+  name: demo
 exclude_groups: []
 exclude_topics: []
 monitor:

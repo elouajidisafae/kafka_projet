@@ -73,8 +73,9 @@ services:
       - PYTHONUNBUFFERED=1
       - KHM_DB_PATH=/app/data/lag_history.db
     volumes:
-      - ./config.yml:/app/config.yml
-      - khm-data:/app/data
+      # Normal use is the single demo cluster; capture may supply isolated storage.
+      - ${KHM_DEMO_CONFIG:-./config.yml}:/app/config.yml
+      - ${KHM_DEMO_DATA:-khm-data}:/app/data
     command: ["python", "main.py", "--mode", "web"]
 
 volumes:

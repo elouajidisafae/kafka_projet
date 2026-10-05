@@ -8,7 +8,7 @@ Monitor Apache Kafka consumer lag, extrapolate linear trends, and generate recom
 docker compose up -d
 ```
 
-Open **http://localhost:8080**. The supplied stack includes Kafka and demo workloads. Its `dev`, `staging` and `production` aliases point to the same broker; configure separate brokers to monitor independent clusters.
+Open **http://localhost:8080**. The supplied stack includes Kafka and demo workloads. It configures one cluster named `demo`; configure distinct broker endpoints to monitor independent clusters.
 
 For local development with Python **3.11-3.13**:
 
@@ -21,7 +21,7 @@ To collect status and recommendations from the terminal:
 
 ```bash
 python main.py --mode cli status
-python main.py --mode cli status --cluster dev
+python main.py --mode cli status --cluster demo
 ```
 
 ## Configuration and storage
@@ -49,7 +49,9 @@ Scaling advice requires rising lag, a positive critical ETA and spare partitions
 
 Multiwindow advice also requires a rising short-window trend. Empty/dead groups receive restart advice instead of scaling advice. Interval ranges are estimates: held-out coverage was below the nominal 90%; an open upper bound appears as “or later.” Baseline remains the default. To enable responsive mode, set `forecast.method: multiwindow`; its defaults are 5 minutes / 0.5. Ranges stay hidden unless `forecast.show_range: true`. In an exploratory wave-two comparison (10 repetitions per pattern), responsive V2 reduced median post-burst 0-15-minute absolute ETA error from 345.1 to 28.2 seconds, but increased the median flat-high false-advice cycle fraction from 5.84% to 18.57%. All 10 repetitions improved on the former and worsened on the latter. These synthetic, exploratory results support a trade-off, not a general accuracy claim.
 
-`/metrics` exposes collection/forecast duration, monitored pairs and collection overruns by cluster. Cycles never overlap. Retention covers lag, forecasts and recommendation matches, including those hidden by display limits.
+Health Score is `round(100 × (1 − penalty / 75))`, using rounded penalties weighted 60 for critical pairs, 25 for warning pairs and 15 for EMPTY/DEAD pairs. Weights are fixed. Bands are Excellent (90+), Good (70+), Degraded (50+), Poor (30+) and Critical (below 30). Configuration audit events retain submitted values and a timestamp, not old values; configuration editing is available through the web interface, not the CLI.
+
+`/metrics` exposes Health Score, collection/forecast duration, monitored pairs, completed cycles and collection overruns. Cycles never overlap. Retention covers lag, forecasts and recommendation matches, including those hidden by display limits.
 
 Docker stores history at `/app/data/lag_history.db` on the `khm-data` named volume. Keep the same Compose project name to reuse it. `docker compose down` preserves the volume; `docker compose down -v` deletes it.
 

@@ -66,3 +66,19 @@ Generate the three held-out figures and plotted CSVs with `python bench/heldout_
 Multiwindow smoke replay runs in the recording container to compare unrounded interval endpoints exactly. Cross-platform numerical libraries can differ in their last floating-point digits; `replay-environment.json` records versions. Keep the container available until smoke validation finishes.
 
 For the separate responsive experiment, review and commit `bench/forecaster_params_responsive.yml` before running `python bench/responsive.py --dataset <path>`. This compares fixed V2 settings (5 minutes / 0.5) with V0 on wave two only, under `heldout-exploratory/`. Results are explicitly exploratory because the original held-out results have already been inspected. The original `heldout/` outputs are not overwritten.
+
+## System benchmarks and paper captures
+
+Commit reviewed code first; each command requires its full SHA and a clean working tree. Run on the host with Docker, `psutil`, and the project dependencies installed. Stop unrelated containers and workloads. Both benchmarks use the existing benchmark broker with a named data volume tied to the commit, preserving its previous volume. No second broker or Compose profile is added.
+
+```bash
+python bench/paper_scalability.py --commit <SHA>
+python bench/paper_comparative.py --commit <SHA>
+python bench/capture.py --commit <SHA>
+```
+
+First validate each benchmark with `--smoke` (one short repetition, separate outputs). Full runs use five repetitions with rotated scenario order and report median [Q1, Q3]. Allow roughly 60–90 minutes per benchmark, depending on startup and collection time. Scalability uses 10/100/500 real committed group/topic pairs, 60-second warm-up and 120-second windows. Its workload is inactive groups with static lag, not active-consumer throughput. Memory is application-process RSS.
+
+Comparison uses pinned Kafdrop 4.0.2 and Kafka UI v0.7.2 images with KHM on the same broker/network and equal 2 GiB limits. Each scenario starts fresh tool containers and discards 60 seconds of warm-up: idle 600 seconds, load 120 seconds with 50 concurrent requests per tool, outage 180 seconds. Docker memory is recorded during idle and load. Overview endpoints differ; this is not a comparison of equivalent API functionality. Recovery requires fresh post-restart broker data, not just HTTP 200.
+
+Outputs are `bench/results/scalability/`, `comparative/`, and `capture/`, including manifests and raw observations. Existing runs are never overwritten. Capture requires both full benchmarks from the same commit and KHM image, switches to the existing demo stack with isolated history, and takes four figures plus four listings at 1440 px, light theme, 2× scale. It needs Playwright and Microsoft Edge (`pip install playwright`). Allow 5–10 minutes. Review evidence before using it in a paper; failed runs remain available for diagnosis.

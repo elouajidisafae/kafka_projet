@@ -230,7 +230,7 @@ async function refreshHealthScore() {
 
   document.getElementById('score-value').textContent = score;
   document.getElementById('score-value').style.color = color;
-  document.getElementById('score-grade').textContent = ({Bon: 'Good', Moyen: 'Fair', Mauvais: 'Poor', Critique: 'Critical', 'Aucune donnee': 'No data', 'Chargement...': 'Loading...'})[json.grade] || json.grade || '—';
+  document.getElementById('score-grade').textContent = ({Bon: 'Good', Moyen: 'Degraded', Mauvais: 'Poor', Critique: 'Critical', 'Aucune donnee': 'No data', 'Chargement...': 'Loading...'})[json.grade] || json.grade || '—';
   document.getElementById('score-grade').style.color = color;
 
   const d = json.details || {};

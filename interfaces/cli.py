@@ -79,7 +79,7 @@ def cli():
 
 
 @cli.command()
-@click.option("--cluster", "-c", default=None, help="Filtrer par cluster (ex: production)")
+@click.option("--cluster", "-c", default=None, help="Filtrer par cluster (ex: demo)")
 def status(cluster):
     """Snapshot instantané du lag. Optionnel : --cluster nom"""
     console.print("\n[cyan]Collecting Kafka metrics...[/cyan]")

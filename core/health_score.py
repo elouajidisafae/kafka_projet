@@ -1,41 +1,23 @@
-"""
-Health Score Global — score de 0 à 100 résumant la santé de tous les clusters.
+"""Health scores normalised by the maximum attainable penalty (75).
 
-FORMULE :
-    score = 100
-    - penalite_critical  (jusqu'à -60 points)
-    - penalite_warning   (jusqu'à -25 points)
-    - penalite_etat      (jusqu'à -15 points)
-
-INTERPRETATION :
-    90-100 : Excellent
-    70-89  : Bon
-    50-69  : Moyen
-    30-49  : Mauvais
-    0-29   : Critique
+Fixed weights: critical 60, warning 25, empty/dead 15. Critical and
+warning statuses are mutually exclusive. Counts refer to group-topic pairs.
 """
-from .config_loader import CONFIG
+
+
+def _components(results):
+    total = len(results)
+    critical = sum(r.status == "CRITICAL" for r in results)
+    warning = sum(r.status == "WARNING" for r in results)
+    empty = sum(str(getattr(r, "group_state", "")).upper() in {"EMPTY", "DEAD"} for r in results)
+    penalties = (round(60 * critical / total), round(25 * warning / total),
+                 round(15 * empty / total)) if total else (0, 0, 0)
+    score = max(0, min(100, round(100 * (1 - sum(penalties) / 75))))
+    return critical, warning, empty, penalties, score
 
 
 def _compute_single_score(results: list) -> int:
-    """
-    Calcule un score brut pour une liste de résultats.
-    Fonction interne sans recursion — utilisée pour les scores par cluster.
-    """
-    if not results:
-        return 100
-
-    total   = len(results)
-    n_crit  = sum(1 for r in results if r.status == "CRITICAL")
-    n_warn  = sum(1 for r in results if r.status == "WARNING")
-    n_empty = sum(1 for r in results if getattr(r, "group_state", "") in ("Empty", "Dead"))
-
-    penalty = (
-        round((n_crit  / total) * 60) +
-        round((n_warn  / total) * 25) +
-        round((n_empty / total) * 15)
-    )
-    return max(0, min(100, 100 - penalty))
+    return _components(results)[-1]
 
 
 def _grade(score: int) -> tuple[str, str]:
@@ -68,20 +50,12 @@ def compute_health_score(results: list) -> dict:
     if not results:
         return _empty_score()
 
-    total   = len(results)
-    n_crit  = sum(1 for r in results if r.status == "CRITICAL")
-    n_warn  = sum(1 for r in results if r.status == "WARNING")
-    n_empty = sum(1 for r in results if getattr(r, "group_state", "") in ("Empty", "Dead"))
+    total = len(results)
+    n_crit, n_warn, n_empty, penalties, score = _components(results)
+    penalty_critical, penalty_warning, penalty_state = penalties
+    pct_crit = n_crit / total
+    pct_warn = n_warn / total
 
-    pct_crit  = n_crit  / total if total > 0 else 0
-    pct_warn  = n_warn  / total if total > 0 else 0
-    pct_empty = n_empty / total if total > 0 else 0
-
-    penalty_critical = round(pct_crit  * 60)
-    penalty_warning  = round(pct_warn  * 25)
-    penalty_state    = round(pct_empty * 15)
-
-    score = max(0, min(100, 100 - penalty_critical - penalty_warning - penalty_state))
     grade, color = _grade(score)
 
     # Scores par cluster — utilise _compute_single_score sans recursion

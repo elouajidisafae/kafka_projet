@@ -1,8 +1,5 @@
-const CLUSTER_COLORS = {
-  'dev':        '#1D9E75',
-  'staging':    '#BA7517',
-  'production': '#E24B4A',
-};
+const CLUSTER_PALETTE = ['#1D9E75', '#BA7517', '#E24B4A', '#378ADD'];
+const clusterColor = name => CLUSTER_PALETTE[Array.from(name).reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 0) % CLUSTER_PALETTE.length];
 
 const fmt = (n) => n >= 0
   ? Math.round(n).toLocaleString('en-GB')
@@ -78,8 +75,8 @@ function renderTimeline(points) {
   const datasets = Object.entries(clusterMap).map(([name, vals]) => ({
     label:           name,
     data:            labels.map(b => vals[b] ?? null),
-    borderColor:     CLUSTER_COLORS[name] || 'var(--primary)',
-    backgroundColor: (CLUSTER_COLORS[name] || 'var(--primary)') + '22',
+    borderColor:     clusterColor(name),
+    backgroundColor: (clusterColor(name)) + '22',
     fill:            true,
     tension:         0.3,
     pointRadius:     1,
