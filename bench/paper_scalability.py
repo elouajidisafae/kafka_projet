@@ -30,12 +30,12 @@ def run(commit, smoke=False):
                 start_khm(image,directory,cfg)
                 wait_for(lambda:len(api("/api/status")["data"])==size,seconds=600)
                 time.sleep(manifest["warmup_seconds"])
-                text=http("http://localhost:18080/metrics")["body"]
+                text=http("http://127.0.0.1:18080/metrics")["body"]
                 seen=metric(text,"khm_collection_cycles_total")
                 initial_overruns=metric(text,"khm_collection_overruns_total")
                 samples=[];memory=[];start=time.monotonic();deadline=start+manifest["window_seconds"]
                 while time.monotonic()<deadline:
-                    response=http("http://localhost:18080/metrics")
+                    response=http("http://127.0.0.1:18080/metrics")
                     if response["status"]!=200: raise RuntimeError("Metrics request failed")
                     text=response["body"];cycle=metric(text,"khm_collection_cycles_total")
                     memory.append(dict(timestamp=utc(),rss_bytes=rss("khm-paper-monitor")))
@@ -49,7 +49,7 @@ def run(commit, smoke=False):
                             forecast_seconds=metric(text,"khm_forecast_duration_seconds")))
                         seen=cycle
                     time.sleep(min(1,max(0,deadline-time.monotonic())))
-                final=http("http://localhost:18080/metrics")["body"]
+                final=http("http://127.0.0.1:18080/metrics")["body"]
                 write_json(directory/"cycles.json",samples);write_json(directory/"rss.json",memory)
                 if len(samples)<2: raise RuntimeError("Fewer than two completed cycles in fixed window; retained as failed, do not extend window")
                 row=dict(repetition=rep,pairs=size,cycles=len(samples),

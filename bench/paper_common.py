@@ -97,7 +97,7 @@ def http(url, timeout=5):
     return dict(timestamp=utc(), seconds=time.monotonic()-start, status=status, body=body)
 
 
-def api(path, base="http://localhost:18080"):
+def api(path, base="http://127.0.0.1:18080"):
     response=http(base+path)
     if response["status"]!=200:
         raise RuntimeError(str(response))
@@ -197,7 +197,7 @@ def start_khm(image, directory, cfg, name="khm-paper-monitor", network="khm-benc
             "-p",f"127.0.0.1:{port}:8080","-e","KHM_DB_PATH=/app/data/lag_history.db",
             "--mount",f"type=bind,source={config},target=/app/config.yml",
             "--mount",f"type=bind,source={data},target=/app/data",image)
-    wait_for(lambda:http(f"http://localhost:{port}/api/status")["status"]==200)
+    wait_for(lambda:http(f"http://127.0.0.1:{port}/api/status")["status"]==200)
 
 
 def seed_pairs(size, prefix):

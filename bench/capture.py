@@ -118,7 +118,7 @@ def run(commit):
             for i in range(count): producer.produce(topic,partition=i%3,value=b'capture')
             if producer.flush(20): raise RuntimeError('Messages not delivered')
         def status(topic):
-            return next((r for r in api('/api/status','http://localhost:8080')['data'] if r['group_id']==topic),{})
+            return next((r for r in api('/api/status','http://127.0.0.1:8080')['data'] if r['group_id']==topic),{})
         def pump():
             try:
                 while not pump_stop.is_set():
@@ -127,7 +127,7 @@ def run(commit):
                 manifest['pump_error']=repr(exc);pump_stop.set()
         pump_thread=threading.Thread(target=pump,daemon=True);pump_thread.start()
         wait_for(lambda:any(r['group_id']==topics[0] and r['id'].endswith('-scale')
-                            for r in api('/api/recommendations','http://localhost:8080')['recommendations']),seconds=180)
+                            for r in api('/api/recommendations','http://127.0.0.1:8080')['recommendations']),seconds=180)
         from playwright.sync_api import sync_playwright
         with sync_playwright() as playwright:
             browser=playwright.chromium.launch(channel='msedge',headless=True)
@@ -136,7 +136,7 @@ def run(commit):
             context.add_init_script("localStorage.setItem('khm-theme','light')")
             page=context.new_page()
             errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
-            def metrics(): return http('http://localhost:8080/metrics')['body']
+            def metrics(): return http('http://127.0.0.1:8080/metrics')['body']
             def screenshot(name):
                 text=page.locator('body').inner_text()
                 for bad in ['Aucune donnee','Mauvais','Configuration mise','dev /','staging /','production /']:
@@ -147,9 +147,9 @@ def run(commit):
                     cycle=metric(metrics(),'khm_collection_cycles_total','demo')
                     wait_for(lambda:metric(metrics(),'khm_collection_cycles_total','demo')>cycle,seconds=30)
                     cycle=metric(metrics(),'khm_collection_cycles_total','demo');started=utc()
-                    page.goto('http://localhost:8080',wait_until='networkidle')
+                    page.goto('http://127.0.0.1:8080',wait_until='networkidle')
                     page.evaluate('async () => {await refresh();await refreshForecast();await refreshHealthScore();await refreshRecommendations();}')
-                    recs=api('/api/recommendations','http://localhost:8080')
+                    recs=api('/api/recommendations','http://127.0.0.1:8080')
                     selected=[r for r in recs['recommendations'] if r['group_id']==topic]
                     required='scale' if chart else 'stranded'
                     if not any(r['id'].endswith('-'+required) for r in selected):
@@ -164,7 +164,7 @@ def run(commit):
                         page.locator('#forecast-chart-section').scroll_into_view_if_needed()
                         page.locator('#forecast-chart-section').screenshot(path=str(output/figure))
                     else:
-                        rows=api('/api/status','http://localhost:8080')['data'];health=api('/api/health-score','http://localhost:8080')
+                        rows=api('/api/status','http://127.0.0.1:8080')['data'];health=api('/api/health-score','http://127.0.0.1:8080')
                         if health['score']>=90 or not {'WARNING','CRITICAL'} <= {r['status'] for r in rows} or not any(r['group_state']=='EMPTY' for r in rows):
                             raise RuntimeError('Overview is not in the prescribed degraded state')
                         screenshot(figure)
@@ -187,11 +187,11 @@ def run(commit):
             consumers[2].rate=0;produce(topics[2],2000)
             wait_for(lambda:status(topics[2]).get('status')=='WARNING')
             manifest['masked_before']=dict(timestamp=utc(),row=status(topics[2]))
-            page.goto('http://localhost:8080/config',wait_until='networkidle')
+            page.goto('http://127.0.0.1:8080/config',wait_until='networkidle')
             page.locator('#warning-threshold').fill('5000')
             # Exercise the existing web form and its real CONFIG_CHANGE audit event.
             page.evaluate('saveConfig()')
-            wait_for(lambda:api('/api/config','http://localhost:8080')['alerts']['warning_threshold']==5000)
+            wait_for(lambda:api('/api/config','http://127.0.0.1:8080')['alerts']['warning_threshold']==5000)
             wait_for(lambda:status(topics[2]).get('status')=='OK')
             manifest['masked_after']=dict(timestamp=utc(),row=status(topics[2]))
             produce(topics[2],4000);wait_for(lambda:status(topics[2]).get('status')=='WARNING')
@@ -200,7 +200,7 @@ def run(commit):
                 cycle=metric(metrics(),'khm_collection_cycles_total','demo')
                 wait_for(lambda:metric(metrics(),'khm_collection_cycles_total','demo')>cycle,seconds=30)
                 cycle=metric(metrics(),'khm_collection_cycles_total','demo');started=utc()
-                page.goto('http://localhost:8080/audit',wait_until='networkidle')
+                page.goto('http://127.0.0.1:8080/audit',wait_until='networkidle')
                 page.evaluate('loadAuditLogs()')
                 selected=audit_excerpt(page.evaluate('currentLogs'),topics[2],manifest['started_at'])
                 screenshot('figure-audit.png')
@@ -210,7 +210,7 @@ def run(commit):
                                                  started_at=started,ended_at=utc(),cycle=cycle))
                     break
             else: raise RuntimeError('Audit figure and export crossed collection cycles')
-            started=utc();page.goto('http://localhost:8080/stats',wait_until='networkidle')
+            started=utc();page.goto('http://127.0.0.1:8080/stats',wait_until='networkidle')
             screenshot('figure-statistics.png')
             manifest['files'].append(dict(figure='figure-statistics.png',started_at=started,ended_at=utc()))
             if errors: raise RuntimeError('Browser errors: '+repr(errors))

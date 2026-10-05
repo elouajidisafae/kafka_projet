@@ -10,9 +10,9 @@ import time
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from bench.paper_common import *
 
-TOOLS={"khm":("khm-paper-monitor","http://localhost:18080/api/status"),
-       "kafdrop":("khm-paper-kafdrop","http://localhost:19000/"),
-       "kafka-ui":("khm-paper-kafka-ui","http://localhost:18081/api/clusters")}
+TOOLS={"khm":("khm-paper-monitor","http://127.0.0.1:18080/api/status"),
+       "kafdrop":("khm-paper-kafdrop","http://127.0.0.1:19000/"),
+       "kafka-ui":("khm-paper-kafka-ui","http://127.0.0.1:18081/api/clusters")}
 
 
 def served_content(tool, response):
@@ -108,7 +108,7 @@ def measure_outage(seconds,directory,topic,group):
     recovered={};deadline=restart+180
     while time.monotonic()<deadline and len(recovered)<3:
         urls={'khm':TOOLS['khm'][1], 'kafdrop':TOOLS['kafdrop'][1],
-              'kafka-ui':'http://localhost:18081/api/clusters/bench/topics?perPage=1000'}
+              'kafka-ui':'http://127.0.0.1:18081/api/clusters/bench/topics?perPage=1000'}
         for tool,url in urls.items():
             if tool in recovered: continue
             response=http(url);fresh=False
