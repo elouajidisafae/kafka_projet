@@ -222,10 +222,23 @@ def seed_pairs(size, prefix):
 
 
 def cleanup_pairs(groups, topics):
+    from confluent_kafka import KafkaError
     from confluent_kafka.admin import AdminClient
     admin=AdminClient({"bootstrap.servers":"localhost:19092"})
-    for request in (admin.delete_consumer_groups(groups),admin.delete_topics(topics)):
-        for future in request.values(): future.result(30)
+    # Await group deletion before issuing topic deletion: deleting the last
+    # topic can also remove an inactive group and race its explicit deletion.
+    for delete, names, absent in (
+        (admin.delete_consumer_groups, groups, KafkaError.GROUP_ID_NOT_FOUND),
+        (admin.delete_topics, topics, KafkaError.UNKNOWN_TOPIC_OR_PART),
+    ):
+        if not names:
+            continue
+        for future in delete(names).values():
+            try:
+                future.result(30)
+            except KafkaException as exc:
+                if exc.args[0].code() != absent:
+                    raise
     wait_for(lambda:not set(topics).intersection(admin.list_topics(timeout=10).topics),seconds=60)
 
 

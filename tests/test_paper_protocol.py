@@ -85,3 +85,45 @@ def test_threshold_form_preserves_unexposed_monitor_options(tmp_path, monkeypatc
     assert yaml.safe_load(path.read_text())['monitor']['group_topic_match'] is True
     assert events[0]['details']==body
     assert events[0]['event_type']=='CONFIG_CHANGE'
+
+
+@pytest.mark.parametrize('missing', [False, True])
+def test_cleanup_waits_for_groups_and_accepts_already_absent(monkeypatch, missing):
+    from types import SimpleNamespace
+    from confluent_kafka import KafkaError, KafkaException
+    import confluent_kafka.admin
+    calls=[]
+    class Future:
+        def __init__(self, kind, code):
+            self.kind,self.code=kind,code
+        def result(self, timeout):
+            calls.append('await-'+self.kind)
+            if missing:
+                raise KafkaException(KafkaError(self.code))
+    class Admin:
+        def delete_consumer_groups(self, groups):
+            calls.append('delete-groups')
+            return {'g':Future('groups',KafkaError.GROUP_ID_NOT_FOUND)}
+        def delete_topics(self, topics):
+            assert calls==['delete-groups','await-groups']
+            calls.append('delete-topics')
+            return {'t':Future('topics',KafkaError.UNKNOWN_TOPIC_OR_PART)}
+        def list_topics(self, timeout):
+            return SimpleNamespace(topics={})
+    monkeypatch.setattr(confluent_kafka.admin,'AdminClient',lambda config:Admin())
+    protocol.cleanup_pairs(['g'],['t'])
+    assert calls==['delete-groups','await-groups','delete-topics','await-topics']
+
+
+def test_cleanup_does_not_hide_authorisation_failure(monkeypatch):
+    from concurrent.futures import Future
+    from types import SimpleNamespace
+    from confluent_kafka import KafkaError, KafkaException
+    import confluent_kafka.admin
+    future=Future()
+    future.set_exception(KafkaException(KafkaError(KafkaError.GROUP_AUTHORIZATION_FAILED)))
+    admin=SimpleNamespace(delete_consumer_groups=lambda groups:{'g':future},
+                          delete_topics=lambda topics:pytest.fail('Topic deletion must not start'))
+    monkeypatch.setattr(confluent_kafka.admin,'AdminClient',lambda config:admin)
+    with pytest.raises(KafkaException):
+        protocol.cleanup_pairs(['g'],['t'])
