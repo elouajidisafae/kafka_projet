@@ -1,5 +1,6 @@
 """One reproducible three-scenario capture session after frozen benchmarks complete."""
 import argparse
+import hashlib
 from collections import deque
 from pathlib import Path
 import sys
@@ -9,6 +10,83 @@ import time
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from bench.paper_common import *
 from datetime import datetime
+
+
+def source_hashes():
+    """Record the actual rehearsal tree, including uncommitted public files."""
+    paths=command('git','ls-files','--cached','--others','--exclude-standard','-z').split('\0')
+    return {name:hashlib.sha256((ROOT/name).read_bytes()).hexdigest()
+            for name in sorted(set(paths)) if name and (ROOT/name).is_file()}
+
+
+def prepare_capture(commit, rehearsal=False):
+    if rehearsal:
+        if command('git','rev-parse','HEAD')!=commit:
+            raise ValueError('Rehearsal base commit does not match HEAD')
+        stamp=datetime.now().strftime('%Y%m%dT%H%M%S%f')
+        output=ROOT/'bench/results'/('capture-rehearsal-'+stamp)
+        output.mkdir(parents=True)
+        manifest=dict(commit=None,base_commit=commit,rehearsal=True,
+                      analysis_class='validation_only',eligible_for_paper=False,
+                      started_at=utc(),status='running',source_hashes=source_hashes())
+        write_json(output/'manifest.json',manifest)
+        return output,manifest,'khm-capture-rehearsal:'+stamp.lower()
+    # Normal paper captures still require a clean committed tree and full runs.
+    frozen_commit(commit)
+    images=[]
+    for name in ['scalability','comparative']:
+        manifest=json.loads((ROOT/'bench/results'/name/'manifest.json').read_text())
+        if manifest['commit']!=commit or manifest['status']!='complete' or manifest['smoke']:
+            raise ValueError('Complete both full benchmarks on this commit before capture')
+        images.append(manifest['images']['khm']['Id'])
+    image='khm-paper:'+commit
+    if len(set(images+[image_details(image)['Id']]))!=1:
+        raise ValueError('Benchmarks and capture must use the same built KHM image')
+    output,manifest=begin('capture',commit)
+    manifest.update(rehearsal=False,analysis_class='paper_capture',eligible_for_paper=True)
+    return output,manifest,image
+
+
+def finish_capture(output, manifest, error=None):
+    if not manifest['rehearsal']:
+        return finish(output,manifest,error)
+    if error is None and source_hashes()!=manifest['source_hashes']:
+        raise ValueError('Source tree changed during rehearsal')
+    manifest.update(ended_at=utc(),status='failed' if error else 'complete')
+    if error: manifest['error']=repr(error)
+    write_json(output/'manifest.json',manifest)
+    print(f"{manifest['status']} (validation only): {output}",flush=True)
+
+
+def settle_charts(page):
+    """Render final canvas positions and retain numerical drawing checks."""
+    return page.evaluate('''async () => {
+      await document.fonts.ready;
+      const charts = typeof Chart === 'undefined' ? [] : Object.values(Chart.instances);
+      for (const chart of charts) {
+        chart.stop();
+        chart.options.animation = false;
+        chart.options.locale = 'en-GB';
+        chart.update('none');
+      }
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return charts.map(chart => {
+        let maxError = 0, points = 0;
+        chart.data.datasets.forEach((dataset, index) => {
+          chart.getDatasetMeta(index).data.forEach((point, j) => {
+            const value = dataset.data[j];
+            if (value == null || point.skip) return;
+            const expected = chart.scales.y.getPixelForValue(value);
+            const error = Math.abs(point.y - expected);
+            if (!Number.isFinite(error) || error > 0.5)
+              throw new Error('Chart is not settled: ' + chart.canvas.id);
+            maxError = Math.max(maxError, error); points++;
+          });
+        });
+        return {canvas: chart.canvas.id, points, max_y_error_pixels: maxError,
+                labels: chart.data.labels, datasets: chart.data.datasets.map(d => ({label:d.label,data:d.data}))};
+      });
+    }''')
 
 
 def audit_excerpt(logs, topic, session_start):
@@ -66,20 +144,13 @@ class ScenarioConsumer:
         if self.error: raise RuntimeError(self.error)
 
 
-def run(commit):
-    # Part C may not precede the complete full benchmarks from this same commit.
-    frozen_commit(commit)
-    images=[]
-    for name in ['scalability','comparative']:
-        manifest=json.loads((ROOT/'bench/results'/name/'manifest.json').read_text())
-        if manifest['commit']!=commit or manifest['status']!='complete' or manifest['smoke']:
-            raise ValueError('Complete both full benchmarks on this commit before capture')
-        images.append(manifest['images']['khm']['Id'])
-    image='khm-paper:'+commit
-    if len(set(images+[image_details(image)['Id']]))!=1:
-        raise ValueError('Benchmarks and capture must use the same built KHM image')
-    output,manifest=begin('capture',commit);consumers=[];pump_stop=threading.Event();browser=None
+def run(commit, rehearsal=False):
+    output,manifest,image=prepare_capture(commit,rehearsal)
+    consumers=[];pump_stop=threading.Event();browser=None
     try:
+        if rehearsal:
+            manifest['host']=host_details()
+            command('docker','build','-t',image,'.',timeout=900)
         running=command('docker','ps','--format','{{.Names}}').splitlines()
         for name in ['khm-bench-kafka-1','khm-bench-khm-1','khm-paper-monitor','khm-paper-kafdrop','khm-paper-kafka-ui']:
             if name in running: command('docker','stop',name)
@@ -141,7 +212,8 @@ def run(commit):
                 text=page.locator('body').inner_text()
                 for bad in ['Aucune donnee','Mauvais','Configuration mise','dev /','staging /','production /']:
                     if bad in text: raise ValueError('Unexpected capture text: '+bad)
-                page.screenshot(path=str(output/name),full_page=True)
+                manifest.setdefault('render_checks',{})[name]=settle_charts(page)
+                page.screenshot(path=str(output/name),full_page=True,animations='disabled')
             def capture_pair(figure,listing,topic,chart=False):
                 for attempt in range(8):
                     cycle=metric(metrics(),'khm_collection_cycles_total','demo')
@@ -162,7 +234,8 @@ def run(commit):
                         page.locator('.forecast-row[onclick]').filter(has_text=topic).click()
                         page.wait_for_function('forecastChart !== null')
                         page.locator('#forecast-chart-section').scroll_into_view_if_needed()
-                        page.locator('#forecast-chart-section').screenshot(path=str(output/figure))
+                        manifest.setdefault('render_checks',{})[figure]=settle_charts(page)
+                        page.locator('#forecast-chart-section').screenshot(path=str(output/figure),animations='disabled')
                     else:
                         rows=api('/api/status','http://127.0.0.1:8080')['data'];health=api('/api/health-score','http://127.0.0.1:8080')
                         if health['score']>=90 or not {'WARNING','CRITICAL'} <= {r['status'] for r in rows} or not any(r['group_state']=='EMPTY' for r in rows):
@@ -211,14 +284,19 @@ def run(commit):
                     break
             else: raise RuntimeError('Audit figure and export crossed collection cycles')
             started=utc();page.goto('http://127.0.0.1:8080/stats',wait_until='networkidle')
+            page.wait_for_function('timelineChart !== null')
             screenshot('figure-statistics.png')
+            for chart in manifest['render_checks']['figure-statistics.png']:
+                for label in chart['labels']:
+                    if not datetime.fromisoformat(manifest['started_at']) <= datetime.fromisoformat(label) <= datetime.fromisoformat(utc()):
+                        raise ValueError('Statistics chart timestamp outside capture session')
             manifest['files'].append(dict(figure='figure-statistics.png',started_at=started,ended_at=utc()))
             if errors: raise RuntimeError('Browser errors: '+repr(errors))
             browser.close();browser=None
         if manifest.get('pump_error'): raise RuntimeError(manifest['pump_error'])
-        finish(output,manifest)
+        finish_capture(output,manifest)
     except BaseException as exc:
-        finish(output,manifest,exc);raise
+        finish_capture(output,manifest,exc);raise
     finally:
         pump_stop.set()
         for c in consumers:
@@ -228,4 +306,5 @@ def run(commit):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--commit',required=True)
-    args=parser.parse_args();run(args.commit)
+    parser.add_argument('--rehearsal',action='store_true',help='Validation-only run of the working tree; never paper evidence')
+    args=parser.parse_args();run(args.commit,args.rehearsal)

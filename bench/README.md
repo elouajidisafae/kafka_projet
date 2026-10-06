@@ -69,6 +69,8 @@ For the separate responsive experiment, review and commit `bench/forecaster_para
 
 ## System benchmarks and paper captures
 
+Before freezing, validate UI changes with `python bench/capture.py --commit <HEAD-SHA> --rehearsal`. This builds the current working tree and saves separate `capture-rehearsal-*` outputs with source hashes, explicitly ineligible for paper use. Captures disable chart animation and verify plotted coordinates before saving.
+
 Commit reviewed code first; each command requires its full SHA and a clean working tree. Run on the host with Docker, `psutil`, and the project dependencies installed. Stop unrelated containers and workloads. Both benchmarks use the existing benchmark broker with a named data volume tied to the commit, preserving its previous volume. No second broker or Compose profile is added.
 
 ```bash

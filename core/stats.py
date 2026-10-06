@@ -9,6 +9,7 @@ Calcule :
 - Comparaison inter-clusters
 """
 from datetime import datetime, timedelta, timezone
+from itertools import groupby
 from .db import utc_now_iso, _get_connection
 
 
@@ -99,26 +100,42 @@ def get_top_groups(limit: int = 5) -> list[dict]:
 
 
 def get_lag_timeline(hours: int = 24) -> list[dict]:
-    """
-    Evolution du lag total par cluster sur les N dernières heures.
-    Agrège les données par tranches de 5 minutes pour lisibilité.
+    """Last-known backlog at each observed five-minute interval's final sample.
 
-    Retourne : [{cluster_name, bucket, total_lag}, ...]
+    Each pair contributes once, using its latest valid observation within the
+    requested history. Carry that value forward when the next interval has no
+    new sample for the pair. Repeated samples never add to the backlog. The
+    legacy `bucket` field contains a real observation timestamp, not a rounded
+    boundary. No points are invented for intervals without observations.
     """
     since = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
     with _get_connection() as conn:
         rows = conn.execute("""
-            SELECT
-                cluster_name,
-                SUBSTR(recorded_at, 1, 15) || '0:00' as bucket,
-                SUM(total_lag)                        as total_lag
-            FROM lag_history
-            WHERE recorded_at >= ?
-            GROUP BY cluster_name, bucket
-            ORDER BY cluster_name, bucket ASC
+            WITH samples AS (
+                SELECT id, cluster_name, group_id, topic, total_lag, recorded_at,
+                       CAST(strftime('%s', recorded_at) AS INTEGER) / 300 AS interval_id
+                FROM lag_history WHERE recorded_at >= ? AND total_lag >= 0
+            ), ranked AS (
+                SELECT *, ROW_NUMBER() OVER (
+                    PARTITION BY cluster_name, group_id, topic, interval_id
+                    ORDER BY recorded_at DESC, id DESC
+                ) AS position FROM samples
+            )
+            SELECT * FROM ranked WHERE position=1
+            ORDER BY cluster_name, interval_id, recorded_at, id
         """, (since,)).fetchall()
-    return [dict(row) for row in rows]
+    result = []
+    for cluster, observations in groupby(rows, key=lambda r: r['cluster_name']):
+        latest = {}
+        for _, interval in groupby(observations, key=lambda r: r['interval_id']):
+            interval = list(interval)
+            for row in interval:
+                latest[row['group_id'], row['topic']] = row['total_lag']
+            result.append(dict(cluster_name=cluster,
+                               bucket=max(r['recorded_at'] for r in interval),
+                               total_lag=sum(latest.values())))
+    return result
 
 
 def get_global_stats() -> dict:

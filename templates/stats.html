@@ -41,7 +41,8 @@
 
   <!-- Timeline -->
   <div class="config-section">
-    <h3>Total lag over the last 24 hours</h3>
+    <h3>Last-known backlog over the last 24 hours</h3>
+    <p>One latest value per group/topic pair; sampled every five minutes at an observed time. Values carry forward until the next observation.</p>
     <div style="position:relative;width:100%;height:280px">
       <canvas id="timeline-chart" role="img"
               aria-label="Lag by cluster over 24 hours"></canvas>
