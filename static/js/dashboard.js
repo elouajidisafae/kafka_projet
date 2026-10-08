@@ -2,6 +2,8 @@ let chart = null;
 let forecastChart = null;
 let displayedForecasts = [];
 let showForecastRange = false;
+let selectedForecastKey = null;
+let forecastRequest = 0;
 
 function intervalLabel(f) {
   if (!showForecastRange || f.method !== 'multiwindow') return '';
@@ -166,8 +168,10 @@ async function loadChart(cluster, group, topic) {
 // ── Forecast table ────────────────────────────────────────────────────────────
 
 async function refreshForecast() {
+  const request = ++forecastRequest;
   const res       = await fetch('/api/forecast');
   const json      = await res.json();
+  if (request !== forecastRequest) return;
   const forecasts = json.forecasts || [];
   displayedForecasts = forecasts;
   showForecastRange = json.show_range === true;
@@ -175,10 +179,11 @@ async function refreshForecast() {
 
   if (!forecasts.length) {
     container.innerHTML = '<div class="placeholder-text">No forecasts available</div>';
+    clearForecastChart();
     return;
   }
 
-  const rows = forecasts.map(f => {
+  const rows = forecasts.map((f, index) => {
     if (!f.enough_data) {
       return `<div class="forecast-row">
         <span class="cluster-pill">${f.cluster_name || '—'}</span>
@@ -187,9 +192,9 @@ async function refreshForecast() {
       </div>`;
     }
     return `<div class="forecast-row" style="cursor:pointer"
-      onclick="loadForecastChart('${f.cluster_name}','${f.group_id}','${f.topic}',${f.slope_per_min},${f.current_lag})">
+      onclick="loadForecastChart(${index})">
       <span class="cluster-pill">${f.cluster_name}</span>
-      <span style="min-width:160px"><strong>${f.group_id}</strong> / ${f.topic}</span>
+      <span style="min-width:160px"><strong>${f.group_id}</strong> / ${f.topic}<small class="forecast-origin" style="display:block;max-width:160px;overflow-wrap:anywhere">As of ${f.display?.origin || 'unavailable'}</small></span>
       <span style="min-width:80px">lag: <strong>${fmt(f.current_lag)}</strong></span>
       <span style="min-width:120px">
         ${trendIcon(f.trend)}
@@ -197,8 +202,8 @@ async function refreshForecast() {
       </span>
       <span>${etaBadge(f.eta_warning_min, 'WARNING')}</span>
       <span>${etaBadge(f.eta_critical_min, 'CRITICAL')}<small style="display:block">${intervalLabel(f)}</small></span>
-      <span style="color:#475569">→ 5min: ${fmt(f.predicted_lag_5min)}</span>
-      <span style="color:#475569">→ 15min: ${fmt(f.predicted_lag_15min)}</span>
+      <span class="forecast-5min" style="color:#475569">→ 5min: ${fmt(f.predicted_lag_5min)}</span>
+      <span class="forecast-15min" style="color:#475569">→ 15min: ${fmt(f.predicted_lag_15min)}</span>
       <span>${confBadge(f.confidence, f.r_squared)}</span>
     </div>`;
   });
@@ -217,6 +222,12 @@ async function refreshForecast() {
     </div>
     ${rows.join('')}
   `;
+  if (selectedForecastKey !== null) {
+    const index = displayedForecasts.findIndex(f => forecastKey(f) === selectedForecastKey);
+    if (index >= 0) loadForecastChart(index);
+    else clearForecastChart();
+  }
+
 }
 
 async function refreshHealthScore() {
@@ -269,104 +280,74 @@ function _clusterScoreColor(score) {
 
 // ── Forecast chart ────────────────────────────────────────────────────────────
 
-async function loadForecastChart(cluster, group, topic, slopePerMin, currentLag) {
-  const selected = displayedForecasts.find(f => f.cluster_name === cluster && f.group_id === group && f.topic === topic);
-  const prediction = selected?.prediction_band || [];
-  const band = showForecastRange ? prediction : [];
+function forecastKey(f) {
+  return JSON.stringify([f.cluster_name, f.group_id, f.topic]);
+}
+
+function clearForecastChart() {
+  if (forecastChart) forecastChart.destroy();
+  forecastChart = null;
+  document.getElementById('forecast-chart-section').style.display = 'none';
+}
+
+function loadForecastChart(index) {
+  const f = displayedForecasts[index];
+  if (!f) return;
+  selectedForecastKey = forecastKey(f);
+  clearForecastChart();
+  if (!f.enough_data || !f.display?.history?.length) return;
+  const origin = Date.parse(f.display.origin);
+  if (!Number.isFinite(origin)) return;
+  // Both series come from the table response. Never re-anchor to newer history.
+  const observed = f.display.history.map(p => ({
+    x: (Date.parse(p.recorded_at) - origin) / 1000, y: p.total_lag
+  }));
+  const projection = (f.display.curve || []).map(p => ({x:p.seconds, y:p.lag}));
+  const band = showForecastRange ? (f.prediction_band || []) : [];
+  const bounds = band.length ? [
+    {label: '90% prediction lower bound', data: band.map(p => ({x:p.seconds, y:p.lower})),
+     borderWidth: 0, pointRadius: 0, fill: false},
+    {label: '90% prediction band (nominal)', data: band.map(p => ({x:p.seconds, y:p.upper})),
+     borderWidth: 0, pointRadius: 0, backgroundColor: '#EF9F2733', fill: '-1'}
+  ] : [];
+  const first = Math.min(...observed.map(p => p.x));
+  const threshold = (label, value, color) => ({
+    label, data: [{x:first,y:value},{x:900,y:value}],
+    borderColor: color, borderWidth: 1.5, borderDash: [4,4], pointRadius: 0
+  });
   document.getElementById('forecast-chart-section').style.display = 'block';
   document.getElementById('forecast-chart-title').textContent =
-    `Forecast — ${cluster} / ${group} / ${topic}`;
+    `Forecast — ${f.cluster_name} / ${f.group_id} / ${f.topic}`;
   document.getElementById('forecast-chart-placeholder').style.display = 'none';
-
-  const res  = await fetch(
-    `/api/history?cluster=${encodeURIComponent(cluster)}`
-    + `&group=${encodeURIComponent(group)}`
-    + `&topic=${encodeURIComponent(topic)}&hours=1`
-  );
-  const json = await res.json();
-  const pts  = json.points || [];
-  if (!pts.length) return;
-
-  const WARNING  = THRESHOLDS.warning;
-  const CRITICAL = THRESHOLDS.critical;
-
-  const obsLabels   = pts.map(p => p.recorded_at.slice(11, 19));
-  const obsData     = pts.map(p => p.total_lag);
-  const slopePerSec = slopePerMin / 60;
-  const lastLag     = obsData[obsData.length - 1];
-  const predLabels  = [];
-  const predData    = [];
-
-  for (let i = 1; i <= 18; i++) {
-    const seconds = i * 50;
-    predLabels.push(`+${Math.round(seconds / 60)}min`);
-    predData.push(prediction.length ? prediction[i].mean : Math.round(lastLag + slopePerSec * seconds));
-  }
-
-  const allLabels = [...obsLabels, ...predLabels];
-  const allObs    = [...obsData,   ...Array(predLabels.length).fill(null)];
-  const allPred   = [...Array(obsLabels.length - 1).fill(null), prediction.length ? prediction[0].mean : lastLag, ...predData];
-  const maxY      = Math.max(...obsData, ...predData, ...band.map(p => p.upper), CRITICAL) * 1.05;
-  const bands = band.length ? [
-    {label: '90% prediction lower bound', data: [...Array(obsLabels.length - 1).fill(null), ...band.map(p => p.lower)],
-     borderWidth: 0, pointRadius: 0, fill: false},
-    {label: '90% prediction band (nominal)', data: [...Array(obsLabels.length - 1).fill(null), ...band.map(p => p.upper)],
-     borderWidth: 0, pointRadius: 0, backgroundColor: '#EF9F2733', fill: '-1'},
-  ] : [];
-
-  if (forecastChart) forecastChart.destroy();
   forecastChart = new Chart(document.getElementById('forecast-canvas'), {
     type: 'line',
-    data: {
-      labels: allLabels,
-      datasets: [
-        ...bands,
-        {
-          label: 'Observed lag',
-          data: allObs,
-          borderColor: '#378ADD',
-          backgroundColor: '#378ADD22',
-          fill: true, tension: 0.3, pointRadius: 2, spanGaps: false,
-        },
-        {
-          label: 'Forecast',
-          data: allPred,
-          borderColor: '#EF9F27',
-          borderDash: [6, 3],
-          backgroundColor: '#EF9F2711',
-          fill: true, tension: 0.2, pointRadius: 2, spanGaps: false,
-        },
-        {
-          label: 'WARNING',
-          data: allLabels.map(() => WARNING),
-          borderColor: '#BA7517',
-          borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0, fill: false,
-        },
-        {
-          label: 'CRITICAL',
-          data: allLabels.map(() => CRITICAL),
-          borderColor: '#E24B4A',
-          borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0, fill: false,
-        },
-      ]
-    },
+    data: {datasets: [
+      ...bounds,
+      {label:'Observed lag', data:observed, borderColor:'#378ADD', pointRadius:3},
+      {label:'Forecast (regression)', data:projection, borderColor:'#EF9F27',
+       borderDash:[6,3], pointRadius:context => [0,300,900].includes(context.raw?.x) ? 4 : 0},
+      threshold('WARNING', f.warning_threshold, '#BA7517'),
+      threshold('CRITICAL', f.critical_threshold, '#E24B4A')
+    ]},
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: band.length > 0 } },
-      scales: {
-        x: {
-          ticks: { color: '#64748b', maxTicksLimit: 10, font: { size: 11 } },
-          grid:  { color: '#1e223530' }
-        },
-        y: {
-          min: 0,
-          max: Math.round(maxY),
-          ticks: { color: '#64748b', font: { size: 11 } },
-          grid:  { color: '#1e223530' }
-        }
+      responsive:true, maintainAspectRatio:false, animation:false, locale:'en-GB',
+      elements: {line: {tension:0, fill:false}},
+      plugins: {
+        legend: {display:band.length > 0},
+        tooltip: {callbacks: {
+          title: items => {
+            const seconds = items[0].parsed.x;
+            return `${new Date(origin + seconds*1000).toISOString()} (${seconds >= 0 ? '+' : ''}${seconds/60} min)`;
+          }
+        }}
       },
-      animation: { duration: 400 }
+      scales: {
+        x: {type:'linear', min:Math.floor(first/60)*60, max:900,
+            title:{display:true, text:'Minutes relative to forecast timestamp (UTC)'},
+            ticks:{stepSize:60, maxTicksLimit:20, font:{size:11},
+                   callback:seconds => `${seconds > 0 ? '+' : ''}${Number((seconds/60).toFixed(2))}`}},
+        y: {min:0, title:{display:true, text:'Lag (messages)'}}
+      }
     }
   });
 }

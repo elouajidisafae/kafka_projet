@@ -30,20 +30,28 @@ def forecast_lag(
     return fit_configured_forecast(records, cluster_name, group_id, topic)
 
 
-def fit_configured_forecast(records, cluster_name, group_id, topic):
+def fit_configured_forecast(records, cluster_name, group_id, topic, *, display=None):
     """Dispatch live forecasts while retaining the original V0 fitter."""
     settings = CONFIG.get("forecast", {})
     method = settings.get("method", "baseline")
     if method == "baseline":
-        return fit_forecast(records, cluster_name, group_id, topic)
+        return fit_forecast(records, cluster_name, group_id, topic, display=display)
     if method != "multiwindow":
         raise ValueError(f"Unknown forecast method: {method}")
     from .multiwindow import fit
-    return fit(records, lambda rows: fit_forecast(rows, cluster_name, group_id, topic),
-               settings, CONFIG["alerts"]["critical_threshold"])
+    fitted_displays = []
+    def baseline_fit(rows):
+        metadata = {} if display is not None else None
+        result = fit_forecast(rows, cluster_name, group_id, topic, display=metadata)
+        fitted_displays.append(metadata)
+        return result
+    result = fit(records, baseline_fit, settings, CONFIG["alerts"]["critical_threshold"])
+    if display is not None and result.get("enough_data"):
+        display.update(fitted_displays[1 if result["window_used"] == "short" else 0])
+    return result
 
 
-def fit_forecast(records: list[dict], cluster_name: str, group_id: str, topic: str) -> dict:
+def fit_forecast(records: list[dict], cluster_name: str, group_id: str, topic: str, *, display=None) -> dict:
     """Fit the configured forecast without database or other I/O."""
     warn = CONFIG["alerts"]["warning_threshold"]
     crit = CONFIG["alerts"]["critical_threshold"]
@@ -132,6 +140,17 @@ def fit_forecast(records: list[dict], cluster_name: str, group_id: str, topic: s
         "warning_threshold": warn,
         "critical_threshold": crit,
     }
+    if display is not None:
+        # Evaluate the existing unrounded fit; never refit or re-anchor it.
+        seconds = set(range(0, 901, 50))
+        if slope != 0:
+            crossing = float(-intercept / slope - now_offset)
+            if 0 < crossing < 900:
+                seconds.add(crossing)
+        display["curve"] = [
+            {"seconds": s, "lag": max(0, int(slope * (now_offset + s) + intercept))}
+            for s in sorted(seconds)
+        ]
     return result
 
 
@@ -155,6 +174,7 @@ _cache = None
 _cache_time = 0.0
 _cache_signature = None
 _cache_inputs = {}
+_cache_display = {}
 
 
 def _signature():
@@ -162,7 +182,7 @@ def _signature():
     return (str(db.DB_PATH), json.dumps(CONFIG, sort_keys=True))
 
 
-def _compute(cluster_name=None):
+def _compute(cluster_name=None, display=None):
     from .db import get_latest_per_group
     from .timing import record_forecast
     started = perf_counter()
@@ -179,7 +199,18 @@ def _compute(cluster_name=None):
             continue
         started = perf_counter()
         records = history.get(key, [])
-        forecasts[key] = fit_configured_forecast(records, *key)
+        fitted_display = {} if display is not None else None
+        forecasts[key] = fit_configured_forecast(records, *key, display=fitted_display)
+        if display is not None and records:
+            # Preserve the exact history read for this fit, not a later API read.
+            # Presentation metadata stays outside algorithm/persistence outputs.
+            display[key] = {
+                **fitted_display,
+                "origin": parse_iso_utc(records[-1]["recorded_at"]).isoformat(),
+                "history": [{"id": r["id"],
+                             "recorded_at": parse_iso_utc(r["recorded_at"]).isoformat(),
+                             "total_lag": r["total_lag"]} for r in records],
+            }
         inputs[key] = [r["id"] for r in records] if CONFIG.get("forecast", {}).get("record_inputs", False) else None
         durations[key[0]] = durations.get(key[0], 0.0) + perf_counter() - started
         counts[key[0]] = counts.get(key[0], 0) + 1
@@ -195,12 +226,14 @@ def _compute(cluster_name=None):
 
 def compute_cycle_forecasts(cluster_name: str | None = None) -> dict:
     """Publish a complete cycle atomically; scoped computations never replace it."""
-    global _cache, _cache_time, _cache_signature, _cache_inputs
+    global _cache, _cache_time, _cache_signature, _cache_inputs, _cache_display
     with _cache_lock:
-        values, inputs = _compute(cluster_name)
+        display = {}
+        values, inputs = _compute(cluster_name, display)
         if cluster_name is None:
             _cache = values
             _cache_inputs = inputs
+            _cache_display = display
             _cache_time = monotonic()
             _cache_signature = _signature()
         return deepcopy(values)
@@ -244,3 +277,14 @@ def cached_forecast_all() -> list[dict]:
         values = forecasts_for_request()
         _persist(values.values())
         return _sort_forecasts(values.values())
+
+
+def cached_forecast_display() -> list[dict]:
+    """Web-only snapshot; table and chart share values and their input history."""
+    with _cache_lock:
+        results = cached_forecast_all()
+        for result in results:
+            key = (result.get("cluster_name"), result.get("group_id"), result.get("topic"))
+            if key in _cache_display:
+                result["display"] = deepcopy(_cache_display[key])
+        return results

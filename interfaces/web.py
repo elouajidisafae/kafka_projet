@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 import uvicorn
 
 from core.lag_calculator import compute_all_lags
-from core.forecasting import forecast_all, cached_forecast_all
+from core.forecasting import forecast_all, cached_forecast_display
 from core.db import init_db, save_lag, get_lag_history, get_latest_per_group, maybe_purge_old_records
 from core.config_loader import CONFIG
 from core.stats import get_global_stats
@@ -112,7 +112,7 @@ def api_forecast():
     Retourne les prédictions de lag pour tous les groupes/topics.
     Basé sur une régression linéaire sur l'historique SQLite.
     """
-    results = cached_forecast_all()
+    results = cached_forecast_display()
     return {"forecasts": results, "show_range": CONFIG.get("forecast", {}).get("show_range", False)}
 
 @app.get("/api/recommendations")
