@@ -79,4 +79,4 @@ First validate with `--smoke` (one short repetition, separate outputs). Full run
 
 Outputs are under `bench/results/scalability/` (or `bench/results/scalability-smoke/` for smoke), including manifests and raw observations. Existing runs are never overwritten; failed runs remain available for diagnosis.
 
-Reproducing the published numbers requires the sealed dataset from the Zenodo record (link to be added).
+Re-running the recording procedure produces a new dataset; results are expected to be close to, but not identical with, the published values.
