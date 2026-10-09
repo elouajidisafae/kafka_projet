@@ -16,9 +16,7 @@ from confluent_kafka import KafkaException
 from bench.common import ROOT, utc, write_json, write_csv
 from bench.forecast_eval import quantiles
 
-IMAGES = {"kafka": "confluentinc/cp-kafka:7.6.0",
-          "kafdrop": "obsidiandynamics/kafdrop:4.0.2",
-          "kafka-ui": "provectuslabs/kafka-ui:v0.7.2"}
+IMAGES = {"kafka": "confluentinc/cp-kafka:7.6.0"}
 
 
 def command(*args, timeout=180, env=None):
@@ -62,7 +60,8 @@ def begin(kind, commit, smoke=False):
         raise ValueError(f"Existing run retained at {output}; review/archive it before another run")
     manifest = dict(commit=commit, started_at=utc(), status="running", smoke=smoke,
                     host=host_details(), source_hashes={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest()
-                    for p in [*(ROOT/"bench").glob("paper_*.py"), ROOT/"bench/capture.py"]})
+                    for p in [ROOT/"bench/paper_common.py", ROOT/"bench/paper_scalability.py",
+                              ROOT/"bench/common.py", ROOT/"bench/forecast_eval.py"]})
     write_json(output/"manifest.json", manifest)
     return output, manifest
 

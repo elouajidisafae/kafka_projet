@@ -1,4 +1,4 @@
-"""Short checks of provenance guards, aggregation, and capture evidence."""
+"""Short checks of provenance guards, aggregation, and runtime behavior."""
 import json
 from copy import deepcopy
 import yaml
@@ -7,7 +7,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from bench import paper_common as protocol
-from bench.capture import audit_excerpt
 from core import timing
 from interfaces import web
 
@@ -53,20 +52,6 @@ def test_repetition_summary_keeps_missing_values_and_rotation():
     assert protocol.byte_quantity('1.5GiB')==1.5*1024**3
 
 
-def test_audit_excerpt_requires_real_ordered_transitions():
-    start='2026-10-05T00:00:00+00:00'
-    rows=[dict(id=i,recorded_at='2026-10-05T00:00:01+00:00',event_type=kind,
-               severity=severity,message=message,details=details)
-          for i,kind,severity,message,details in [
-              (1,'CONFIG_CHANGE','INFO','Configuration updated',json.dumps({'alerts':{'warning_threshold':5000}})),
-              (2,'ALERT','INFO','s3 back to OK',None),
-              (3,'ALERT','WARNING','s3 WARNING',None),
-              (4,'ALERT','CRITICAL','s3 CRITICAL',None)]]
-    assert audit_excerpt(list(reversed(rows)),'s3',start)==rows
-    with pytest.raises(ValueError,match='Expected resolved'):
-        audit_excerpt(rows[:3],'s3',start)
-    with pytest.raises(ValueError,match='predates'):
-        audit_excerpt(rows,'s3','2026-10-06T00:00:00+00:00')
 
 
 def test_threshold_form_preserves_unexposed_monitor_options(tmp_path, monkeypatch):
@@ -127,29 +112,3 @@ def test_cleanup_does_not_hide_authorisation_failure(monkeypatch):
     monkeypatch.setattr(confluent_kafka.admin,'AdminClient',lambda config:admin)
     with pytest.raises(KafkaException):
         protocol.cleanup_pairs(['g'],['t'])
-
-
-def test_capture_rehearsal_is_separate_and_never_claims_a_commit(tmp_path, monkeypatch):
-    from bench import capture
-    monkeypatch.setattr(capture,'ROOT',tmp_path)
-    monkeypatch.setattr(capture,'command',lambda *args:'base-sha')
-    monkeypatch.setattr(capture,'source_hashes',lambda:{'core/stats.py':'working-bytes'})
-    output,manifest,image=capture.prepare_capture('base-sha',rehearsal=True)
-    assert output.name.startswith('capture-rehearsal-')
-    assert image.startswith('khm-capture-rehearsal:')
-    assert manifest['commit'] is None and manifest['base_commit']=='base-sha'
-    assert manifest['eligible_for_paper'] is False
-    assert manifest['analysis_class']=='validation_only'
-    capture.finish_capture(output,manifest)
-    assert json.loads((output/'manifest.json').read_text())['status']=='complete'
-    monkeypatch.setattr(capture,'source_hashes',lambda:{'core/stats.py':'different-bytes'})
-    with pytest.raises(ValueError,match='changed during rehearsal'):
-        capture.finish_capture(output,manifest)
-
-
-def test_normal_capture_still_requires_frozen_source(monkeypatch):
-    from bench import capture
-    def reject(commit): raise ValueError('not frozen')
-    monkeypatch.setattr(capture,'frozen_commit',reject)
-    with pytest.raises(ValueError,match='not frozen'):
-        capture.prepare_capture('base-sha')

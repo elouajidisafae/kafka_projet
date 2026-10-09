@@ -61,7 +61,7 @@ Outside Docker, history defaults to `lag_history.db` in the project root. Set `K
 
 The statistics timeline sums the latest observed lag per group/topic pair in five-minute intervals. Values carry forward within the selected history window; timestamps identify actual observations, not repeated-sample totals.
 
-The [benchmark guide](bench/README.md) covers isolated workloads, recording, checksummed datasets and offline replay. The benchmark dashboard uses **http://localhost:18080**, with a separate broker and data volumes.
+The [benchmark guide](bench/README.md) is optional reproduction material covering isolated workloads, recording, checksummed datasets and offline replay. The benchmark dashboard uses **http://localhost:18080**, with a separate broker and data volumes.
 
 Forecasts are linear extrapolations. Evaluation reports prediction errors and false warnings; passing recording and replay checks does not establish predictive accuracy.
 

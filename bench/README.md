@@ -14,11 +14,10 @@ Run commands on the host from the repository root with Docker Desktop running. T
 
 ```bash
 python bench/run_forecast_validation.py --arm smoke --profile smoke --reps 1 --waves 1 --duration-min 5
-python bench/measure_collection.py
 python bench/calibrate.py
 ```
 
-Allow about 5 minutes for smoke, 10 minutes for collection timing and 45 minutes for calibration. Inspect the reports in `bench/results/`: pattern targets, rate/commit checks, replay and crossing-time agreement must pass. Refresh validation when configuration or workload changes.
+Allow about 5 minutes for smoke and 45 minutes for calibration. Inspect the reports in `bench/results/`: pattern targets, rate/commit checks, replay and crossing-time agreement must pass. Refresh validation when configuration or workload changes.
 
 ## Record the baseline
 
@@ -28,7 +27,7 @@ Review and commit the source and configuration first. Baseline requires a clean 
 python bench/run_forecast_validation.py --arm baseline --reps 10 --waves 2
 ```
 
-Allow 2-2.5 hours for two 60-minute waves. Use a quiet host and prevent sleep/restarts. Do not repeat the baseline to select better outcomes. Failed or interrupted captures are retained for diagnosis.
+Allow 2-2.5 hours for two 60-minute waves. Use a quiet host and prevent sleep/restarts. Do not repeat the baseline to select better outcomes. Failed or interrupted recordings are retained for diagnosis.
 
 ## Replay and evaluate
 
@@ -61,26 +60,23 @@ Use `python bench/forecast_eval.py --dataset <path> --secondary` for the labelle
 
 Then run `python bench/forecast_eval.py --dataset <path> --forecaster V0,V1,V2,V3 --split heldout`. Results under `heldout/` include paired per-repetition differences, interval coverage and finite width. Missing comparisons remain null; open-ended intervals are excluded from width. Parameters and analysis source hashes freeze on first execution; repeats require identical results. Preserve that source version before further integration changes.
 
-Generate the three held-out figures and plotted CSVs with `python bench/heldout_figures.py --dataset <path>`. Validate live integration separately with `python bench/run_forecast_validation.py --arm smoke --profile smoke --reps 1 --waves 1 --duration-min 5 --method multiwindow`; this uses committed parameters and replays V3. Smoke data is not predictive-performance evidence.
+Validate live integration separately with `python bench/run_forecast_validation.py --arm smoke --profile smoke --reps 1 --waves 1 --duration-min 5 --method multiwindow`; this uses committed parameters and replays V3. Smoke data is not predictive-performance evidence.
 
 Multiwindow smoke replay runs in the recording container to compare unrounded interval endpoints exactly. Cross-platform numerical libraries can differ in their last floating-point digits; `replay-environment.json` records versions. Keep the container available until smoke validation finishes.
 
 For the separate responsive experiment, review and commit `bench/forecaster_params_responsive.yml` before running `python bench/responsive.py --dataset <path>`. This compares fixed V2 settings (5 minutes / 0.5) with V0 on wave two only, under `heldout-exploratory/`. Results are explicitly exploratory because the original held-out results have already been inspected. The original `heldout/` outputs are not overwritten.
 
-## System benchmarks and paper captures
+## Scalability benchmark
 
-Before freezing, validate UI changes with `python bench/capture.py --commit <HEAD-SHA> --rehearsal`. This builds the current working tree and saves separate `capture-rehearsal-*` outputs with source hashes, explicitly ineligible for paper use. Captures disable chart animation and verify plotted coordinates before saving.
-
-Commit reviewed code first; each command requires its full SHA and a clean working tree. Run on the host with Docker, `psutil`, and the project dependencies installed. Stop unrelated containers and workloads. Both benchmarks use the existing benchmark broker with a named data volume tied to the commit, preserving its previous volume. No second broker or Compose profile is added.
+Commit reviewed code first; the command requires its full SHA and a clean working tree. Run on the host with Docker, `psutil`, and the project dependencies installed. Stop unrelated containers and workloads. The benchmark uses the existing benchmark broker with a named data volume tied to the commit, preserving its previous volume. No second broker or Compose profile is added.
 
 ```bash
+python bench/paper_scalability.py --commit <SHA> --smoke
 python bench/paper_scalability.py --commit <SHA>
-python bench/paper_comparative.py --commit <SHA>
-python bench/capture.py --commit <SHA>
 ```
 
-First validate each benchmark with `--smoke` (one short repetition, separate outputs). Full runs use five repetitions with rotated scenario order and report median [Q1, Q3]. Allow roughly 60–90 minutes per benchmark, depending on startup and collection time. Scalability uses 10/100/500 real committed group/topic pairs, 60-second warm-up and 120-second windows. Its workload is inactive groups with static lag, not active-consumer throughput. Memory is application-process RSS.
+First validate with `--smoke` (one short repetition, separate outputs). Full runs use five repetitions with rotated scenario order and report median [Q1, Q3]. Allow roughly 60?90 minutes, depending on startup and collection time. Scalability uses 10/100/500 real committed group/topic pairs, 60-second warm-up and 120-second windows. Its workload is inactive groups with static lag, not active-consumer throughput. Memory is application-process RSS.
 
-Comparison uses pinned Kafdrop 4.0.2 and Kafka UI v0.7.2 images with KHM on the same broker/network and equal 2 GiB limits. Each scenario starts fresh tool containers and discards 60 seconds of warm-up: idle 600 seconds, load 120 seconds with 50 concurrent requests per tool, outage 180 seconds. Docker memory is recorded during idle and load. Overview endpoints differ; this is not a comparison of equivalent API functionality. Recovery requires fresh post-restart broker data, not just HTTP 200.
+Outputs are under `bench/results/scalability/` (or `bench/results/scalability-smoke/` for smoke), including manifests and raw observations. Existing runs are never overwritten; failed runs remain available for diagnosis.
 
-Outputs are `bench/results/scalability/`, `comparative/`, and `capture/`, including manifests and raw observations. Existing runs are never overwritten. Capture requires both full benchmarks from the same commit and KHM image, switches to the existing demo stack with isolated history, and takes four figures plus four listings at 1440 px, light theme, 2× scale. It needs Playwright and Microsoft Edge (`pip install playwright`). Allow 5–10 minutes. Review evidence before using it in a paper; failed runs remain available for diagnosis.
+Reproducing the published numbers requires the sealed dataset from the Zenodo record (link to be added).
