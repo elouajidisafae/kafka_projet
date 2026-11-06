@@ -1,3 +1,4 @@
+let activeHealthAlerts = [];
 let chart = null;
 let forecastChart = null;
 let displayedForecasts = [];
@@ -251,12 +252,16 @@ async function refreshHealthScore() {
 
   document.getElementById('score-value').textContent = score;
   document.getElementById('score-value').style.color = color;
-  document.getElementById('score-grade').textContent = ({Bon: 'Good', Moyen: 'Degraded', Mauvais: 'Poor', Critique: 'Critical', 'Aucune donnee': 'No data', 'Chargement...': 'Loading...'})[json.grade] || json.grade || '—';
+  document.getElementById('score-grade').textContent = json.grade || '?';
   document.getElementById('score-grade').style.color = color;
 
-  const d = json.details || {};
-  document.getElementById('score-detail').textContent =
-    `${json.n_critical} critical  •  ${json.n_warning} warning  •  ${json.n_ok} ok`;
+  activeHealthAlerts = json.active_alerts || [];
+  document.getElementById('active-alert-total').textContent = `${json.active_alert_count || 0} active alerts`;
+  const p = json.performance || {}, a = json.availability || {}, m = json.monitoring || {};
+  const detail = document.getElementById('score-detail');
+  detail.textContent = `Performance: ${p.critical || 0} critical, ${p.warning || 0} warning. Availability: ${a.stopped_pairs || 0} stopped pairs, ${a.waiting_messages || 0} waiting messages. Monitoring: ${m.unreachable_clusters || 0} unreachable clusters, ${m.error_pairs || 0} errors, ${m.unknown_pairs || 0} unknown.`;
+  detail.title = (json.ceiling_reasons || []).join('; ');
+  if (document.getElementById('active-alert-dialog').open) renderActiveAlerts();
 
   const circumference = 188.5;
   const offset = circumference - (score / 100) * circumference;
@@ -271,21 +276,34 @@ async function refreshHealthScore() {
   if (clusterDiv && json.by_cluster) {
     clusterDiv.innerHTML = json.by_cluster.map(c => `
       <div style="text-align:center;min-width:80px">
-        <div style="font-size:1.4rem;font-weight:700;color:${_clusterScoreColor(c.score)}">${c.score}</div>
+        <div style="font-size:1.4rem;font-weight:700;color:${c.color}">${c.score} ? ${c.grade}</div>
         <div style="font-size:.7rem;color:#64748b;text-transform:uppercase;
                     letter-spacing:.5px">${c.cluster_name}</div>
-        <div style="font-size:.7rem;color:#475569">${c.n_critical}C ${c.n_warning}W ${c.n_ok}OK</div>
+        <div style="font-size:.7rem;color:#475569">Performance: ${c.performance.critical} critical, ${c.performance.warning} warning<br>Availability: ${c.availability.stopped_pairs} stopped, ${c.availability.waiting_messages} messages<br>Monitoring: ${c.monitoring.unreachable_clusters} unreachable, ${c.monitoring.error_pairs} errors, ${c.monitoring.unknown_pairs} unknown</div>
       </div>
     `).join('<div style="width:1px;background:#2d3148"></div>');
   }
 }
 
-function _clusterScoreColor(score) {
-  if (score >= 90) return '#22c55e';
-  if (score >= 70) return '#4ade80';
-  if (score >= 50) return '#facc15';
-  if (score >= 30) return '#fb923c';
-  return '#f87171';
+function renderActiveAlerts() {
+  const container = document.getElementById('active-alert-list');
+  container.replaceChildren();
+  if (!activeHealthAlerts.length) container.textContent = 'No active alerts.';
+  activeHealthAlerts.forEach(alert => {
+    const item = document.createElement('p');
+    const details = [];
+    if (alert.lag != null) details.push(`Lag: ${alert.lag}`);
+    if (alert.group_state) details.push(`Group state: ${alert.group_state}`);
+    if (alert.error) details.push(`Error: ${alert.error}`);
+    if (alert.last_successful_collection) details.push(`Last successful collection: ${alert.last_successful_collection}`);
+    item.textContent = `${alert.message}${details.length ? ' ? ' + details.join('; ') : ''}`;
+    container.appendChild(item);
+  });
+}
+
+function openActiveAlerts() {
+  renderActiveAlerts();
+  document.getElementById('active-alert-dialog').showModal();
 }
 
 // ── Forecast chart ────────────────────────────────────────────────────────────

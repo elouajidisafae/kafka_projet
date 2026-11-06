@@ -48,6 +48,7 @@
         </div>
         <div class="score-info">
           <div class="score-label">Overall health score</div>
+          <button type="button" id="active-alert-total" onclick="openActiveAlerts()">0 active alerts</button>
           <div id="score-grade">—</div>
           <div id="score-detail">—</div>
         </div>
@@ -55,6 +56,13 @@
       <!-- Scores par cluster -->
       <div id="cluster-scores" class="cluster-scores"></div>
     </div>
+
+  <dialog id="active-alert-dialog" aria-labelledby="active-alert-title">
+    <h2 id="active-alert-title">Active alerts</h2>
+    <p>Each active condition is counted separately. A pair can have both a lag alert and an availability alert.</p>
+    <div id="active-alert-list"></div>
+    <form method="dialog"><button>Close</button></form>
+  </dialog>
 
   <div class="cards">
     <div class="card total"><div class="label">Monitored groups</div><div class="value" id="c-total">—</div></div>

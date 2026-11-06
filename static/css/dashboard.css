@@ -554,3 +554,8 @@ html.light .nav-link.active {
 .severity-critical { border-top: 3px solid #f87171; }
 .severity-info     { border-top: 3px solid var(--primary); }
 .suggestion-metrics { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.75rem; }
+
+#active-alert-dialog { max-width: 800px; max-height: 75vh; overflow: auto; background: var(--bg-card, #171c2d); color: var(--text-primary, #e2e8f0); border: 1px solid #64748b; border-radius: 10px; padding: 24px; }
+#active-alert-dialog::backdrop { background: #0008; }
+#active-alert-total { cursor: pointer; }
+#score-detail { max-width: 560px; white-space: normal; }

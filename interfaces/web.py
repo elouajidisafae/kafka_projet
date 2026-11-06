@@ -241,7 +241,7 @@ def api_health_score():
     Retourne le Health Score global (0-100).
     Calculé à chaque cycle de collecte — pas de recalcul à la demande.
     """
-    return _last_health_score if _last_health_score else {"score": None, "grade": "Chargement..."}
+    return _last_health_score if _last_health_score else {"score": None, "grade": "Loading..."}
 
 
 @app.get("/stats", response_class=HTMLResponse)
@@ -307,6 +307,26 @@ def metrics():
     lines.append("# TYPE khm_health_score gauge")
     if _last_health_score:
         lines.append(f'khm_health_score {_last_health_score["score"]}')
+    gauges = {
+        "khm_health_worst_state": (None, "worst_state"),
+        "khm_health_critical_pairs": ("performance", "critical"),
+        "khm_health_warning_pairs": ("performance", "warning"),
+        "khm_health_stopped_pairs": ("availability", "stopped_pairs"),
+        "khm_health_waiting_messages": ("availability", "waiting_messages"),
+        "khm_health_unreachable_clusters": ("monitoring", "unreachable_clusters"),
+        "khm_health_error_pairs": ("monitoring", "error_pairs"),
+        "khm_health_unknown_pairs": ("monitoring", "unknown_pairs"),
+    }
+    for metric in gauges:
+        lines.append(f"# TYPE {metric} gauge")
+    if _last_health_score:
+        for summary in [_last_health_score] + _last_health_score.get("by_cluster", []):
+            suffix = '{cluster=' + json.dumps(summary["cluster_name"]) + '}' if "cluster_name" in summary else ""
+            if suffix:
+                lines.append(f'khm_health_score{suffix} {summary["score"]}')
+            for metric, (section, field) in gauges.items():
+                value = summary.get(section, {}).get(field, 0) if section else summary.get(field, 0)
+                lines.append(f"{metric}{suffix} {value}")
     return "\n".join(lines)
 
 
