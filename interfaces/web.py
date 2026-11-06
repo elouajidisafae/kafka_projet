@@ -110,7 +110,7 @@ def _background_collector():
             get_recommendations(persist=True)
             # Calcul du Health Score global
             global _last_health_score
-            _last_health_score = compute_health_score([r for r in results if r.status != "ERROR"])
+            _last_health_score = compute_health_score(results, _cluster_statuses)
             from core.timing import record_cycle
             for cluster in CONFIG["clusters"]:
                 record_cycle(cluster["name"])

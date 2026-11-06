@@ -49,54 +49,48 @@ def _empty_score() -> dict:
     }
 
 
-def compute_health_score(results: list) -> dict:
-    """
-    Calcule le Health Score global à partir des résultats de lag.
-    Utilise _compute_single_score pour les clusters — pas de recursion.
-    """
-    results = _measured(results)
-    if not results:
-        return _empty_score()
-
-    total = len(results)
-    n_crit, n_warn, n_empty, penalties, score = _components(results)
-    penalty_critical, penalty_warning, penalty_state = penalties
-    pct_crit = n_crit / total
-    pct_warn = n_warn / total
-
-    grade, color = _grade(score)
-
-    # Scores par cluster — utilise _compute_single_score sans recursion
-    cluster_map: dict[str, list] = {}
-    for r in results:
-        cluster_map.setdefault(r.cluster_name, []).append(r)
-
-    by_cluster = []
-    for cname, clist in cluster_map.items():
-        by_cluster.append({
-            "cluster_name": cname,
-            "score":      _compute_single_score(clist),
-            "n_critical": sum(1 for r in clist if r.status == "CRITICAL"),
-            "n_warning":  sum(1 for r in clist if r.status == "WARNING"),
-            "n_ok":       sum(1 for r in clist if r.status == "OK"),
-            "total":      len(clist),
-        })
-
+def _indicators(results, cluster_status):
+    fresh = [r for r in results if not getattr(r, "stale", False)
+             and cluster_status.get(r.cluster_name, {}).get("reachable", True)]
+    measured = _measured(fresh)
+    stopped = [r for r in measured if str(getattr(r, "group_state", "")).upper() in {"EMPTY", "DEAD"}
+               and getattr(r, "total_lag", 0) > 0]
     return {
-        "score":        score,
-        "grade":        grade,
-        "color":        color,
-        "total_groups": total,
-        "n_critical":   n_crit,
-        "n_warning":    n_warn,
-        "n_ok":         total - n_crit - n_warn,
-        "n_empty":      n_empty,
-        "details": {
-            "penalty_critical": penalty_critical,
-            "penalty_warning":  penalty_warning,
-            "penalty_state":    penalty_state,
-            "pct_critical":     round(pct_crit  * 100, 1),
-            "pct_warning":      round(pct_warn  * 100, 1),
-        },
-        "by_cluster": by_cluster,
+        "performance": {"critical": sum(r.status == "CRITICAL" for r in measured),
+                        "warning": sum(r.status == "WARNING" for r in measured)},
+        "availability": {"stopped_pairs": len(stopped),
+                         "waiting_messages": sum(r.total_lag for r in stopped)},
+        "monitoring": {"unreachable_clusters": sum(not s.get("reachable", True) for s in cluster_status.values()),
+                       "error_pairs": sum(r.status == "ERROR" for r in fresh),
+                       "unknown_pairs": sum(r.status == "UNKNOWN" for r in fresh)},
     }
+
+
+def _summary(results, cluster_status):
+    measured = _measured([r for r in results if cluster_status.get(r.cluster_name, {}).get("reachable", True)])
+    total = len(measured)
+    critical, warning, empty, penalties, score = _components(measured)
+    grade, color = _grade(score)
+    return {
+        "score": score, "grade": grade, "color": color,
+        "total_groups": total, "total": total,
+        "n_critical": critical, "n_warning": warning,
+        "n_ok": sum(r.status == "OK" for r in measured), "n_empty": empty,
+        "details": {
+            "penalty_critical": penalties[0], "penalty_warning": penalties[1], "penalty_state": penalties[2],
+            "pct_critical": round(100 * critical / total, 1) if total else 0.0,
+            "pct_warning": round(100 * warning / total, 1) if total else 0.0,
+        },
+        **_indicators(results, cluster_status),
+    }
+
+
+def compute_health_score(results: list, cluster_status: dict | None = None) -> dict:
+    """Measured-pair score plus independent performance, availability and monitoring counts."""
+    cluster_status = cluster_status or {}
+    names = list(dict.fromkeys([r.cluster_name for r in results] + list(cluster_status)))
+    summary = _summary(results, cluster_status)
+    summary["by_cluster"] = [dict(_summary([r for r in results if r.cluster_name == name],
+                                          {name: cluster_status[name]} if name in cluster_status else {}),
+                                   cluster_name=name) for name in names]
+    return summary
