@@ -206,7 +206,8 @@ class TestInvalidCommittedOffsets:
         assert [p.partition_id for p in result.partitions] == [0, 2]
         assert result.total_lag == (100 - 90) + (300 - 250)
 
-def test_failed_measurement_preserves_error_and_audits():
+def test_failed_measurement_preserves_error_and_audits(monkeypatch):
+    monkeypatch.setattr("core.audit._failures", set())
     with patch("core.lag_calculator._make_consumer", side_effect=RuntimeError("broker down")), patch("core.audit.log_event") as audit:
         row = compute_lag_for_group("dev", "kafka", "g", "t")
     assert (row.status, row.total_lag) == ("ERROR", -1)
@@ -237,3 +238,48 @@ def test_group_topic_match_still_filters_candidates():
     with patch.object(lag, "CONFIG", {"clusters": [{"name": "dev", "bootstrap_servers": "kafka"}], "monitor": {"group_topic_match": True}}), patch.object(lag, "describe_groups", return_value={"g": GroupDescription("g", "EMPTY", [])}), patch.object(lag, "get_topics", return_value=["g", "other"]), patch.object(lag, "update_group_state_streak"), patch.object(lag, "compute_lag_for_group", return_value=row) as compute:
         assert lag.compute_all_lags() == [row]
     compute.assert_called_once_with("dev", "kafka", "g", "g")
+
+
+def test_pair_audits_only_failure_and_recovery(tmp_path, monkeypatch):
+    from core import audit, db, lag_calculator as lag
+    from confluent_kafka import TopicPartition
+    monkeypatch.setattr(audit, "_failures", set())
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "audit.db")
+    db.init_db()
+    probe = MagicMock()
+    probe.list_topics.return_value.topics = {"t": MagicMock(partitions={0: None})}
+    probe.get_watermark_offsets.return_value = (0, 100)
+    committed = MagicMock()
+    committed.committed.return_value = [TopicPartition("t", 0, 90)]
+    with patch.object(lag, "_make_consumer", side_effect=[RuntimeError("offline")] * 3 + [probe, probe]), patch.object(lag, "client", return_value=committed):
+        for _ in range(3):
+            assert lag.compute_lag_for_group("dev", "kafka", "g", "t").status == "ERROR"
+        assert len(audit.fetch_logs()) == 1
+        for _ in range(2):
+            assert lag.compute_lag_for_group("dev", "kafka", "g", "t").status == "OK"
+    events = audit.fetch_logs()
+    assert len(events) == 2
+    assert {e["severity"] for e in events} == {"WARNING", "INFO"}
+    assert all(e["event_type"] == "SYSTEM" for e in events)
+    assert any("failed" in e["message"] and "offline" in e["message"] for e in events)
+    assert any("recovered" in e["message"] for e in events)
+
+
+def test_cluster_audits_only_failure_and_recovery(tmp_path, monkeypatch):
+    from core import audit, db, lag_calculator as lag
+    monkeypatch.setattr(audit, "_failures", set())
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "audit.db")
+    db.init_db()
+    monkeypatch.setattr(lag, "CONFIG", {"clusters": [{"name": "dev", "bootstrap_servers": "kafka"}]})
+    with patch.object(lag, "describe_groups", return_value={}), patch.object(lag, "get_topics", side_effect=[RuntimeError("offline")] * 3 + [[], []]):
+        for _ in range(3):
+            assert lag.compute_all_lags().cluster_status["dev"]["reachable"] is False
+        assert len(audit.fetch_logs()) == 1
+        for _ in range(2):
+            assert lag.compute_all_lags().cluster_status["dev"]["reachable"] is True
+    events = audit.fetch_logs()
+    assert len(events) == 2
+    assert {e["severity"] for e in events} == {"WARNING", "INFO"}
+    assert all(e["event_type"] == "SYSTEM" for e in events)
+    assert any("failed" in e["message"] for e in events)
+    assert any("recovered" in e["message"] for e in events)

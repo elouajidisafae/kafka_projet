@@ -12,6 +12,7 @@ from core.kafka_client import describe_groups, consumer_count_for_topic
 from core.db import update_group_state_streak
 from .config_loader import CONFIG
 from .client_pool import client
+from .audit import record_failure_transition
 
 
 @dataclass
@@ -150,6 +151,7 @@ def compute_lag_for_group(
             if pid in committed_offsets
         ], key=lambda p: p.partition_id)
 
+        record_failure_transition(cluster_name, group=group_id, topic=topic)
         return ConsumerGroupStatus(
             cluster_name=cluster_name,
             group_id=group_id,
@@ -161,9 +163,7 @@ def compute_lag_for_group(
 
     except Exception as e:
         print(f"[lag_calculator] Erreur {group_id}/{topic}: {e}")
-        from core.audit import log_event
-        log_event("SYSTEM", "WARNING", f"Lag measurement failed: {cluster_name}/{group_id}/{topic}: {e}",
-                  {"cluster": cluster_name, "group": group_id, "topic": topic, "error": str(e)})
+        record_failure_transition(cluster_name, group=group_id, topic=topic, error=str(e))
         return ConsumerGroupStatus(
             cluster_name=cluster_name,
             group_id=group_id,
@@ -202,10 +202,12 @@ def compute_all_lags() -> list[ConsumerGroupStatus]:
             print(f"[monitor]   groups={groups} topics={topics}")
         except Exception as e:
             print(f"[monitor]   Connection error: {e}")
+            record_failure_transition(name, error=str(e))
             results.cluster_status[name] = {"reachable": False, "error": str(e)}
             record_collection(name, perf_counter() - started, 0)
             continue
 
+        record_failure_transition(name)
         results.cluster_status[name] = {"reachable": True, "error": None}
 
         # Récupère tous les états en un seul appel Admin (optimisé)
