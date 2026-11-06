@@ -204,3 +204,10 @@ class TestInvalidCommittedOffsets:
         assert result.partitions_counted == 2
         assert [p.partition_id for p in result.partitions] == [0, 2]
         assert result.total_lag == (100 - 90) + (300 - 250)
+
+def test_failed_measurement_preserves_error_and_audits():
+    with patch("core.lag_calculator._make_consumer", side_effect=RuntimeError("broker down")), patch("core.audit.log_event") as audit:
+        row = compute_lag_for_group("dev", "kafka", "g", "t")
+    assert (row.status, row.total_lag) == ("ERROR", -1)
+    assert audit.call_args.args[:2] == ("SYSTEM", "WARNING")
+    assert audit.call_args.args[3] == {"cluster": "dev", "group": "g", "topic": "t", "error": "broker down"}

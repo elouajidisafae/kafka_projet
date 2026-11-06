@@ -38,3 +38,23 @@ def test_web_recommendation_api_uses_new_contract(tmp_path, monkeypatch):
     assert rec["priority"] == "HIGH" and rec["cluster_name"] == "dev"
     assert rec["metrics"] == {"current_lag": 1500, "group_state": "EMPTY"}
     assert "severity" not in rec
+
+
+def test_error_is_live_but_never_history(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "errors.db")
+    db.init_db()
+    row = ConsumerGroupStatus("dev", "g", "t", status="ERROR")
+    monkeypatch.setattr(cli_module, "compute_all_lags", lambda: [row])
+    monkeypatch.setattr("core.forecasting.forecast_all", lambda: None)
+    monkeypatch.setattr("core.recommender.get_recommendations", lambda **kw: [])
+    assert cli_module._collect_and_save()[0].status == "ERROR"
+    db.save_lag("dev", "g", "t", 0, "ERROR")
+    assert db.get_lag_history("dev", "g", "t") == []
+    from dataclasses import asdict
+    monkeypatch.setattr(web, "_current_rows", [asdict(row)])
+    client = TestClient(web.app)
+    assert client.get("/api/status").json()["data"][0]["status"] == "ERROR"
+    assert 'kafka_consumer_status{cluster="dev",group="g",topic="t"} -1' in client.get("/metrics").text
+    output = StringIO()
+    Console(file=output, width=180).print(cli_module._build_table([row]))
+    assert "ERROR" in output.getvalue()

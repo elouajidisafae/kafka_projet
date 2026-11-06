@@ -41,6 +41,9 @@ class ConsumerGroupStatus:
             self.partition_count = len(self.partitions)
         if self.partitions_counted is None:
             self.partitions_counted = len(self.partitions)
+        if self.status == "ERROR":
+            self.total_lag = -1
+            return
         self.total_lag = sum(p.lag for p in self.partitions)
         self.status = _compute_status(self.total_lag)
 
@@ -155,6 +158,9 @@ def compute_lag_for_group(
 
     except Exception as e:
         print(f"[lag_calculator] Erreur {group_id}/{topic}: {e}")
+        from core.audit import log_event
+        log_event("SYSTEM", "WARNING", f"Lag measurement failed: {cluster_name}/{group_id}/{topic}: {e}",
+                  {"cluster": cluster_name, "group": group_id, "topic": topic, "error": str(e)})
         return ConsumerGroupStatus(
             cluster_name=cluster_name,
             group_id=group_id,

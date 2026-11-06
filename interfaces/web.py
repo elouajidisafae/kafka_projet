@@ -1,6 +1,7 @@
 """
 Interface Web — FastAPI avec support multi-cluster.
 """
+from dataclasses import asdict
 import threading
 import time
 import yaml
@@ -26,6 +27,15 @@ from core import __version__
 app = FastAPI(title="Kafka Health Monitor", version=__version__)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+_current_rows = None
+
+
+def _status_rows(cluster=None):
+    if _current_rows is None:
+        return []
+    return [r for r in _current_rows if cluster is None or r["cluster_name"] == cluster]
+
+
 _last_health_score = {}
 _last_statuses = {} # Track status per group to log transitions
 
@@ -35,8 +45,10 @@ def _background_collector():
     def cycle():
         try:
             results = compute_all_lags()
+            global _current_rows
+            _current_rows = [dict(asdict(r), recorded_at=r.timestamp.isoformat()) for r in results]
             for r in results:
-                if r.total_lag >= 0:
+                if r.status != "ERROR" and r.total_lag >= 0:
                     save_lag(
                         r.cluster_name, r.group_id, r.topic, r.total_lag, r.status,
                         r.group_state, partition_count=r.partition_count,
@@ -68,7 +80,7 @@ def _background_collector():
             get_recommendations(persist=True)
             # Calcul du Health Score global
             global _last_health_score
-            _last_health_score = compute_health_score(results)
+            _last_health_score = compute_health_score([r for r in results if r.status != "ERROR"])
             from core.timing import record_cycle
             for cluster in CONFIG["clusters"]:
                 record_cycle(cluster["name"])
@@ -84,7 +96,7 @@ def _background_collector():
 @app.get("/api/status")
 def api_status(request: Request):
     cluster = request.query_params.get("cluster")
-    rows = get_latest_per_group(cluster_name=cluster)
+    rows = _status_rows(cluster)
     clusters = [c["name"] for c in CONFIG["clusters"]]
     return {
         "data": rows,
@@ -224,7 +236,7 @@ def api_audit(limit: int = 100):
 
 @app.get("/metrics", response_class=PlainTextResponse)
 def metrics():
-    rows = get_latest_per_group()
+    rows = _status_rows()
     lines = []
     lines.append("# HELP kafka_consumer_lag Pending messages")
     lines.append("# TYPE kafka_consumer_lag gauge")
@@ -232,7 +244,7 @@ def metrics():
         if row["total_lag"] >= 0:
             label = f'cluster="{row["cluster_name"]}",group="{row["group_id"]}",topic="{row["topic"]}"'
             lines.append(f"kafka_consumer_lag{{{label}}} {row['total_lag']}")
-    lines.append("# HELP kafka_consumer_status Status (0=OK 1=WARNING 2=CRITICAL)")
+    lines.append("# HELP kafka_consumer_status Status (-1=ERROR 0=OK 1=WARNING 2=CRITICAL)")
     lines.append("# TYPE kafka_consumer_status gauge")
     status_map = {"OK": 0, "WARNING": 1, "CRITICAL": 2, "ERROR": -1}
     for row in rows:

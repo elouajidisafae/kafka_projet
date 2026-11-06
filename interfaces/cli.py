@@ -60,7 +60,7 @@ def _build_table(results: list[ConsumerGroupStatus], cluster_filter=None) -> Tab
 def _collect_and_save() -> list[ConsumerGroupStatus]:
     results = compute_all_lags()
     for r in results:
-        if r.total_lag >= 0:
+        if r.status != "ERROR" and r.total_lag >= 0:
             save_lag(r.cluster_name, r.group_id, r.topic, r.total_lag, r.status,
                      r.group_state, partition_count=r.partition_count,
                      partitions_counted=r.partitions_counted, consumer_count=r.consumer_count)

@@ -148,6 +148,8 @@ def save_lag(cluster_name: str, group_id: str, topic: str,
              *, log_end_offset: int | None = None, committed_offset: int | None = None,
              partition_count: int | None = None, partitions_counted: int | None = None,
              run_id: str | None = None, consumer_count: int | None = None):
+    if status == "ERROR":
+        return
     from .kafka_client import normalize_group_state
     group_state = normalize_group_state(group_state)
     now = utc_now_iso()
