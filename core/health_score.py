@@ -30,23 +30,10 @@ def _compute_single_score(results: list) -> int:
 def _grade(score: int) -> tuple[str, str]:
     """Retourne le grade et la couleur associés au score."""
     if score >= 90: return "Excellent", "#22c55e"
-    if score >= 70: return "Bon",       "#4ade80"
-    if score >= 50: return "Moyen",     "#facc15"
-    if score >= 30: return "Mauvais",   "#fb923c"
-    return             "Critique",  "#f87171"
-
-
-def _empty_score() -> dict:
-    return {
-        "score": 100, "grade": "Aucune donnee", "color": "#64748b",
-        "total_groups": 0, "n_critical": 0, "n_warning": 0,
-        "n_ok": 0, "n_empty": 0,
-        "details": {
-            "penalty_critical": 0, "penalty_warning": 0, "penalty_state": 0,
-            "pct_critical": 0.0, "pct_warning": 0.0,
-        },
-        "by_cluster": [],
-    }
+    if score >= 70: return "Good",       "#4ade80"
+    if score >= 50: return "Degraded",     "#facc15"
+    if score >= 30: return "Poor",   "#fb923c"
+    return             "Critical",  "#f87171"
 
 
 def _indicators(results, cluster_status):
@@ -64,6 +51,44 @@ def _indicators(results, cluster_status):
                        "error_pairs": sum(r.status == "ERROR" for r in fresh),
                        "unknown_pairs": sum(r.status == "UNKNOWN" for r in fresh)},
     }
+
+
+def _active_alerts(results, cluster_status):
+    alerts = []
+    for name, state in cluster_status.items():
+        if not state.get("reachable", True):
+            alerts.append({"kind": "unreachable_cluster", "severity": 1, "cluster_name": name,
+                           "message": f"Unreachable cluster: {name}", "error": state.get("error"),
+                           "last_successful_collection": state.get("last_successful_collection")})
+    for row in results:
+        if getattr(row, "stale", False) or not cluster_status.get(row.cluster_name, {}).get("reachable", True):
+            continue
+        target = f"{row.cluster_name}/{getattr(row, 'group_id', '?')}/{getattr(row, 'topic', '?')}"
+        details = {"cluster_name": row.cluster_name, "group_id": getattr(row, "group_id", None),
+                   "topic": getattr(row, "topic", None), "lag": getattr(row, "total_lag", None),
+                   "group_state": getattr(row, "group_state", None)}
+        if row.status in {"CRITICAL", "WARNING", "ERROR", "UNKNOWN"}:
+            alerts.append(dict(details, kind=row.status.lower(), severity=2 if row.status == "CRITICAL" else 1,
+                               message=f"{row.status} pair: {target}"))
+        if row in _measured([row]) and str(getattr(row, "group_state", "")).upper() in {"EMPTY", "DEAD"} and getattr(row, "total_lag", 0) > 0:
+            alerts.append(dict(details, kind="stopped_pair", severity=2,
+                               message=f"1 stopped group with waiting messages: {target} ({row.total_lag} messages)"))
+    return alerts
+
+
+def _apply_label(summary, results, cluster_status):
+    alerts = _active_alerts(results, cluster_status)
+    worst = max((a["severity"] for a in alerts), default=0)
+    band, _ = _grade(summary["score"])
+    labels = ["Critical", "Poor", "Degraded", "Good", "Excellent"]
+    ceiling = "Critical" if worst == 2 else "Degraded" if worst == 1 else None
+    final = labels[min(labels.index(band), labels.index(ceiling))] if ceiling else band
+    colors = ["#f87171", "#fb923c", "#facc15", "#4ade80", "#22c55e"]
+    summary.update(score_band=band, grade=final, color=colors[labels.index(final)],
+                   ceiling=ceiling, worst_state=worst,
+                   ceiling_reasons=[a["message"] for a in alerts if a["severity"] == worst],
+                   active_alerts=alerts, active_alert_count=len(alerts))
+    return summary
 
 
 def _summary(results, cluster_status):
@@ -89,8 +114,10 @@ def compute_health_score(results: list, cluster_status: dict | None = None) -> d
     """Measured-pair score plus independent performance, availability and monitoring counts."""
     cluster_status = cluster_status or {}
     names = list(dict.fromkeys([r.cluster_name for r in results] + list(cluster_status)))
-    summary = _summary(results, cluster_status)
-    summary["by_cluster"] = [dict(_summary([r for r in results if r.cluster_name == name],
+    summary = _apply_label(_summary(results, cluster_status), results, cluster_status)
+    summary["by_cluster"] = [dict(_apply_label(_summary([r for r in results if r.cluster_name == name],
+                                          {name: cluster_status[name]} if name in cluster_status else {}),
+                                          [r for r in results if r.cluster_name == name],
                                           {name: cluster_status[name]} if name in cluster_status else {}),
                                    cluster_name=name) for name in names]
     return summary
