@@ -78,7 +78,7 @@ def _background_collector():
             results = compute_all_lags()
             _publish_collection(results)
             for r in results:
-                if r.status != "ERROR" and r.total_lag >= 0:
+                if r.status not in {"ERROR", "UNKNOWN"} and r.total_lag >= 0:
                     save_lag(
                         r.cluster_name, r.group_id, r.topic, r.total_lag, r.status,
                         r.group_state, partition_count=r.partition_count,
@@ -279,18 +279,18 @@ def metrics():
     for row in rows:
         label = f'cluster={json.dumps(row["cluster_name"])},group={json.dumps(row["group_id"])},topic={json.dumps(row["topic"])}'
         lines.append(f'kafka_consumer_snapshot_stale{{{label}}} {int(row.get("stale", False))}')
-        if row.get("recorded_at") and row["status"] != "ERROR":
+        if row.get("recorded_at") and row["status"] not in {"ERROR", "UNKNOWN"}:
             stamp = datetime.fromisoformat(row["recorded_at"]).timestamp()
             lines.append(f'kafka_consumer_last_success_timestamp_seconds{{{label}}} {stamp}')
     lines.append("# HELP kafka_consumer_lag Pending messages")
     lines.append("# TYPE kafka_consumer_lag gauge")
     for row in rows:
-        if row["total_lag"] >= 0:
+        if row["status"] not in {"ERROR", "UNKNOWN"} and row["total_lag"] >= 0:
             label = f'cluster="{row["cluster_name"]}",group="{row["group_id"]}",topic="{row["topic"]}"'
             lines.append(f"kafka_consumer_lag{{{label}}} {row['total_lag']}")
-    lines.append("# HELP kafka_consumer_status Status (-1=ERROR 0=OK 1=WARNING 2=CRITICAL)")
+    lines.append("# HELP kafka_consumer_status Status (-2=UNKNOWN -1=ERROR 0=OK 1=WARNING 2=CRITICAL)")
     lines.append("# TYPE kafka_consumer_status gauge")
-    status_map = {"OK": 0, "WARNING": 1, "CRITICAL": 2, "ERROR": -1}
+    status_map = {"OK": 0, "WARNING": 1, "CRITICAL": 2, "ERROR": -1, "UNKNOWN": -2}
     for row in rows:
         label = f'cluster="{row["cluster_name"]}",group="{row["group_id"]}",topic="{row["topic"]}"'
         lines.append(f"kafka_consumer_status{{{label}}} {status_map.get(row['status'], -1)}")

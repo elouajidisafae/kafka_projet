@@ -49,7 +49,7 @@ class ConsumerGroupStatus:
         if self.partitions_without_commit is None:
             self.partitions_without_commit = self.partition_count - self.partitions_counted
         self.total_lag = sum(p.lag for p in self.partitions)
-        self.status = _compute_status(self.total_lag)
+        self.status = "UNKNOWN" if self.partition_count > 0 and self.partitions_counted == 0 else _compute_status(self.total_lag)
 
 
 def _compute_status(total_lag: int) -> str:

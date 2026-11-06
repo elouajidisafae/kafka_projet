@@ -23,6 +23,7 @@ const badge = (status) => {
     WARNING:  ['warn', '▲ WARNING'],
     CRITICAL: ['crit', '✖ CRITICAL'],
     ERROR:    ['err',  '? ERROR'],
+    UNKNOWN:  ['err',  '? UNKNOWN'],
   };
   const [cls, label] = map[status] || ['err', status];
   return `<span class="badge ${cls}">${label}</span>`;
@@ -117,7 +118,7 @@ async function refresh() {
         <td><span class="cluster-pill">${r.cluster_name}</span></td>
         <td><strong>${r.group_id}</strong></td>
         <td>${r.topic}</td>
-        <td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r.total_lag)}${r.stale ? " (STALE)" : ""}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums">${r.status === "UNKNOWN" ? "N/A" : fmt(r.total_lag)}${r.stale ? " (STALE)" : ""}</td>
         <td>${r.partitions_without_commit ?? "N/A"}</td>
         <td>${badge(r.status)}</td>
         <td>${stateBadge(r.group_state || 'Unknown')}</td>

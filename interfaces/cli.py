@@ -18,6 +18,7 @@ from core.config_loader import CONFIG
 console = Console()
 
 STATUS_STYLE = {
+    "UNKNOWN": ("[dim]? UNKNOWN[/dim]", "dim"),
     "OK":       ("[green]● OK[/green]",        "green"),
     "WARNING":  ("[yellow]▲ WARNING[/yellow]",  "yellow"),
     "CRITICAL": ("[red]✖ CRITICAL[/red]",      "red"),
@@ -45,7 +46,7 @@ def _build_table(results: list[ConsumerGroupStatus], cluster_filter=None) -> Tab
 
     for r in results:
         status_text, row_style = STATUS_STYLE.get(r.status, ("?", ""))
-        lag_display = f"{r.total_lag:,}" if r.total_lag >= 0 else "N/A"
+        lag_display = f"{r.total_lag:,}" if r.status not in {"ERROR", "UNKNOWN"} else "N/A"
         table.add_row(
             r.cluster_name,
             r.group_id,
@@ -62,7 +63,7 @@ def _build_table(results: list[ConsumerGroupStatus], cluster_filter=None) -> Tab
 def _collect_and_save() -> list[ConsumerGroupStatus]:
     results = compute_all_lags()
     for r in results:
-        if r.status != "ERROR" and r.total_lag >= 0:
+        if r.status not in {"ERROR", "UNKNOWN"} and r.total_lag >= 0:
             save_lag(r.cluster_name, r.group_id, r.topic, r.total_lag, r.status,
                      r.group_state, partition_count=r.partition_count,
                      partitions_counted=r.partitions_counted, consumer_count=r.consumer_count)
