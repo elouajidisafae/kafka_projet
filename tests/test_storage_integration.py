@@ -65,7 +65,7 @@ def test_collection_counts_once_per_group(database, monkeypatch):
     from core.kafka_client import GroupDescription, GroupMember
     monkeypatch.setattr(lag, "CONFIG", {"clusters": [{"name": "dev", "bootstrap_servers": "kafka"}],
                                        "alerts": {"warning_threshold": 1000, "critical_threshold": 10000}})
-    monkeypatch.setattr(lag, "describe_groups", lambda _: {"g": GroupDescription("g", "STABLE", [GroupMember("m", "c", "h", {"orders": [0]})])})
+    monkeypatch.setattr(lag, "describe_groups", lambda _, **kw: {"g": GroupDescription("g", "STABLE", [GroupMember("m", "c", "h", {"orders": [0]})])})
     monkeypatch.setattr(lag, "get_topics", lambda _: ["orders", "logs", "clicks"])
     monkeypatch.setattr(lag, "compute_lag_for_group", lambda c, b, g, t: lag.ConsumerGroupStatus(c, g, t))
     rows = lag.compute_all_lags()

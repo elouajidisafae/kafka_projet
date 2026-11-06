@@ -2,6 +2,8 @@
 Interface Web — FastAPI avec support multi-cluster.
 """
 from dataclasses import asdict
+from datetime import datetime, timezone
+import json
 import threading
 import time
 import yaml
@@ -28,12 +30,41 @@ app = FastAPI(title="Kafka Health Monitor", version=__version__)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 _current_rows = None
+_cluster_statuses = {}
 
 
 def _status_rows(cluster=None):
     if _current_rows is None:
         return []
     return [r for r in _current_rows if cluster is None or r["cluster_name"] == cluster]
+
+
+def _publish_collection(results):
+    """Keep stored lag visible during outages, without adding stale history points."""
+    global _current_rows, _cluster_statuses
+    now = datetime.now(timezone.utc).isoformat()
+    outcomes = getattr(results, "cluster_status", {})
+    rows, statuses = [], {}
+    for cluster in CONFIG["clusters"]:
+        name = cluster["name"]
+        outcome = outcomes.get(name, {"reachable": True, "error": None})
+        reachable = outcome["reachable"]
+        if reachable:
+            selected = [dict(asdict(r), recorded_at=r.timestamp.isoformat(), stale=False)
+                        for r in results if r.cluster_name == name]
+            last_success = now
+        else:
+            selected = [dict(r, stale=True) for r in get_latest_per_group(cluster_name=name)]
+            for row in selected:
+                count, counted = row.get("partition_count"), row.get("partitions_counted")
+                row["partitions_without_commit"] = count - counted if count is not None and counted is not None else None
+            last_success = _cluster_statuses.get(name, {}).get("last_successful_collection")
+            if last_success is None:
+                last_success = max((r["recorded_at"] for r in selected), default=None)
+        statuses[name] = dict(outcome, status="REACHABLE" if reachable else "UNREACHABLE",
+                              stale=not reachable, last_successful_collection=last_success)
+        rows.extend(selected)
+    _current_rows, _cluster_statuses = rows, statuses
 
 
 _last_health_score = {}
@@ -45,8 +76,7 @@ def _background_collector():
     def cycle():
         try:
             results = compute_all_lags()
-            global _current_rows
-            _current_rows = [dict(asdict(r), recorded_at=r.timestamp.isoformat()) for r in results]
+            _publish_collection(results)
             for r in results:
                 if r.status != "ERROR" and r.total_lag >= 0:
                     save_lag(
@@ -101,6 +131,7 @@ def api_status(request: Request):
     return {
         "data": rows,
         "clusters": clusters,
+        "cluster_status": _cluster_statuses,
         "thresholds": {
             "warning":  CONFIG["alerts"]["warning_threshold"],
             "critical": CONFIG["alerts"]["critical_threshold"],
@@ -238,6 +269,19 @@ def api_audit(limit: int = 100):
 def metrics():
     rows = _status_rows()
     lines = []
+    lines.append("# HELP khm_cluster_reachable Cluster metadata collection succeeded (1) or failed (0)")
+    lines.append("# TYPE khm_cluster_reachable gauge")
+    for name, state in _cluster_statuses.items():
+        lines.append(f'khm_cluster_reachable{{cluster={json.dumps(name)}}} {int(state["reachable"])}')
+    lines.append("# HELP kafka_consumer_snapshot_stale Lag snapshot is stale (1) or fresh (0)")
+    lines.append("# TYPE kafka_consumer_snapshot_stale gauge")
+    lines.append("# TYPE kafka_consumer_last_success_timestamp_seconds gauge")
+    for row in rows:
+        label = f'cluster={json.dumps(row["cluster_name"])},group={json.dumps(row["group_id"])},topic={json.dumps(row["topic"])}'
+        lines.append(f'kafka_consumer_snapshot_stale{{{label}}} {int(row.get("stale", False))}')
+        if row.get("recorded_at") and row["status"] != "ERROR":
+            stamp = datetime.fromisoformat(row["recorded_at"]).timestamp()
+            lines.append(f'kafka_consumer_last_success_timestamp_seconds{{{label}}} {stamp}')
     lines.append("# HELP kafka_consumer_lag Pending messages")
     lines.append("# TYPE kafka_consumer_lag gauge")
     for row in rows:

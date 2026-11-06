@@ -1,3 +1,4 @@
+import pytest
 from click.testing import CliRunner
 from fastapi.testclient import TestClient
 from rich.console import Console
@@ -71,3 +72,55 @@ def test_unknown_partitions_visible(monkeypatch):
     output = StringIO()
     Console(file=output, width=180).print(cli_module._build_table([row]))
     assert "No commit" in output.getvalue()
+
+
+@pytest.mark.parametrize("warm_start", [False, True])
+def test_cluster_outage_serves_stored_snapshot_then_recovers(tmp_path, monkeypatch, warm_start):
+    from core import lag_calculator as lag
+    from core.kafka_client import GroupDescription
+    from unittest.mock import Mock
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "outage.db")
+    db.init_db()
+    config = dict(lag.CONFIG, clusters=[{"name": "dev", "bootstrap_servers": "kafka"}])
+    monkeypatch.setattr(lag, "CONFIG", config)
+    monkeypatch.setattr(web, "CONFIG", config)
+    monkeypatch.setattr(web, "_current_rows", None)
+    monkeypatch.setattr(web, "_cluster_statuses", {})
+    monkeypatch.setattr(lag, "describe_groups", lambda *a, **kw: {"g": GroupDescription("g", "EMPTY", [])})
+    topics = Mock(return_value=["t"])
+    monkeypatch.setattr(lag, "get_topics", topics)
+    row = ConsumerGroupStatus("dev", "g", "t", [PartitionLag(0, 20, 10, 10)])
+    monkeypatch.setattr(lag, "compute_lag_for_group", lambda *a: row)
+    db.save_lag("dev", "g", "t", 10, "OK", partition_count=1, partitions_counted=1)
+    stored_time = db.get_latest_per_group()[0]["recorded_at"]
+    if warm_start:
+        web._publish_collection(lag.compute_all_lags())
+    topics.side_effect = RuntimeError("broker unavailable")
+    web._publish_collection(lag.compute_all_lags())
+    client = TestClient(web.app)
+    payload = client.get("/api/status").json()
+    state = payload["cluster_status"]["dev"]
+    assert state["status"] == "UNREACHABLE" and state["reachable"] is False
+    assert state["last_successful_collection"] is not None
+    assert payload["data"][0]["total_lag"] == 10
+    assert payload["data"][0]["stale"] is True
+    assert payload["data"][0]["recorded_at"] == stored_time
+    metrics = client.get("/metrics").text
+    assert 'khm_cluster_reachable{cluster="dev"} 0' in metrics
+    assert 'kafka_consumer_snapshot_stale{cluster="dev",group="g",topic="t"} 1' in metrics
+    assert 'kafka_consumer_last_success_timestamp_seconds{' in metrics
+    assert 'kafka_consumer_lag{cluster="dev",group="g",topic="t"} 10' in metrics
+    assert len(db.get_lag_history("dev", "g", "t")) == 1
+    topics.side_effect = None
+    row = ConsumerGroupStatus("dev", "g", "t", [PartitionLag(0, 30, 10, 20)])
+    web._publish_collection(lag.compute_all_lags())
+    payload = client.get("/api/status").json()
+    assert payload["cluster_status"]["dev"]["reachable"] is True
+    assert payload["data"][0]["stale"] is False
+    assert payload["data"][0]["total_lag"] == 20
+    metrics = client.get("/metrics").text
+    assert 'khm_cluster_reachable{cluster="dev"} 1' in metrics
+    assert 'kafka_consumer_snapshot_stale{cluster="dev",group="g",topic="t"} 0' in metrics
+    from pathlib import Path
+    script = Path("static/js/dashboard.js").read_text(encoding="utf-8")
+    assert "UNREACHABLE" in script and "STALE" in script and "last_successful_collection" in script

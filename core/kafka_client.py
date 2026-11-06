@@ -138,7 +138,8 @@ class GroupDescription:
 
 
 def describe_groups(cluster_name: str, *, bootstrap_servers: str | None = None,
-                    group_ids: list[str] | None = None) -> dict[str, GroupDescription]:
+                    group_ids: list[str] | None = None,
+                    strict: bool = False) -> dict[str, GroupDescription]:
     """Full group descriptions including member assignments."""
     descriptions = {}
     try:
@@ -175,6 +176,8 @@ def describe_groups(cluster_name: str, *, bootstrap_servers: str | None = None,
             except Exception as exc:
                 print(f"[kafka_client] Could not describe group {gid}: {exc}")
     except Exception as exc:
+        if strict:
+            raise
         print(f"[kafka_client] Could not describe groups for {cluster_name}: {exc}")
     return descriptions
 

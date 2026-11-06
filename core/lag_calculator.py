@@ -172,12 +172,20 @@ def compute_lag_for_group(
             total_lag=-1,
         )
     
+class CollectionResults(list):
+    """Pair measurements with explicit outcomes for clusters having no rows."""
+
+    def __init__(self):
+        super().__init__()
+        self.cluster_status = {}
+
+
 def compute_all_lags() -> list[ConsumerGroupStatus]:
     """
     Calcule le lag pour TOUS les consumer groups sur TOUS les topics.
     Inclut maintenant l'état du groupe (STABLE, EMPTY, DEAD...).
     """
-    results = []
+    results = CollectionResults()
     severity_order = {"CRITICAL": 0, "WARNING": 1, "OK": 2, "ERROR": 3}
 
     for cluster in CONFIG["clusters"]:
@@ -188,14 +196,17 @@ def compute_all_lags() -> list[ConsumerGroupStatus]:
         print(f"[monitor] Cluster '{name}' → {servers}")
 
         try:
-            descriptions = describe_groups(name)
+            descriptions = describe_groups(name, strict=True)
             groups = list(descriptions)
             topics = get_topics(servers)
             print(f"[monitor]   groups={groups} topics={topics}")
         except Exception as e:
             print(f"[monitor]   Connection error: {e}")
+            results.cluster_status[name] = {"reachable": False, "error": str(e)}
             record_collection(name, perf_counter() - started, 0)
             continue
+
+        results.cluster_status[name] = {"reachable": True, "error": None}
 
         # Récupère tous les états en un seul appel Admin (optimisé)
         for group in groups:

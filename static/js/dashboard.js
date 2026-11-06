@@ -98,6 +98,14 @@ async function refresh() {
   }
 
   renderTabs(json.clusters || []);
+  const clusterStatus = document.getElementById('cluster-status');
+  clusterStatus.replaceChildren();
+  Object.entries(json.cluster_status || {}).forEach(([name, state]) => {
+    if (state.reachable || (activeCluster && activeCluster !== name)) return;
+    const notice = document.createElement('p');
+    notice.textContent = `${name}: UNREACHABLE ? stale snapshot. Last successful collection: ${state.last_successful_collection || 'none'}`;
+    clusterStatus.appendChild(notice);
+  });
 
   document.getElementById('c-total').textContent = rows.length;
   document.getElementById('c-ok').textContent    = rows.filter(r => r.status === 'OK').length;
@@ -109,7 +117,7 @@ async function refresh() {
         <td><span class="cluster-pill">${r.cluster_name}</span></td>
         <td><strong>${r.group_id}</strong></td>
         <td>${r.topic}</td>
-        <td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r.total_lag)}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r.total_lag)}${r.stale ? " (STALE)" : ""}</td>
         <td>${r.partitions_without_commit ?? "N/A"}</td>
         <td>${badge(r.status)}</td>
         <td>${stateBadge(r.group_state || 'Unknown')}</td>

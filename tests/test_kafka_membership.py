@@ -83,3 +83,10 @@ def test_installed_sdk_rebalance_enum(monkeypatch, enum_name, expected):
     desc = kc.describe_groups("dev")["g"]
     assert desc.state == expected
     assert kc.consumer_count_for_topic(desc, "orders") is None
+
+
+def test_strict_collection_propagates_cluster_listing_failure(monkeypatch):
+    admin = setup_admin(monkeypatch, [])
+    admin.list_consumer_groups.side_effect = RuntimeError("broker unavailable")
+    with pytest.raises(RuntimeError, match="broker unavailable"):
+        kc.describe_groups("dev", strict=True)
