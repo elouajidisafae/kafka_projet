@@ -70,7 +70,7 @@ def test_collection_counts_once_per_group(database, monkeypatch):
     monkeypatch.setattr(lag, "compute_lag_for_group", lambda c, b, g, t: lag.ConsumerGroupStatus(c, g, t))
     rows = lag.compute_all_lags()
     assert db.get_group_state_streak("dev", "g")["streak_count"] == 1
-    assert {r.topic: r.consumer_count for r in rows} == {"orders": 1, "logs": 0, "clicks": 0}
+    assert {r.topic: r.consumer_count for r in rows} == {"orders": 1}
     lag.compute_all_lags()
     assert db.get_group_state_streak("dev", "g")["streak_count"] == 2
 

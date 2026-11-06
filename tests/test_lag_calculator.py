@@ -212,3 +212,28 @@ def test_failed_measurement_preserves_error_and_audits():
     assert (row.status, row.total_lag) == ("ERROR", -1)
     assert audit.call_args.args[:2] == ("SYSTEM", "WARNING")
     assert audit.call_args.args[3] == {"cluster": "dev", "group": "g", "topic": "t", "error": "broker down"}
+
+
+@pytest.mark.parametrize("state,assigned,committed,expected", [
+    ("STABLE", False, False, False),
+    ("EMPTY", False, True, True),
+    ("STABLE", True, False, True),
+    ("PREPARING_REBALANCE", True, False, True),
+])
+def test_pair_existence(state, assigned, committed, expected):
+    from core import lag_calculator as lag
+    from core.kafka_client import GroupDescription, GroupMember
+    desc = GroupDescription("g", state, [GroupMember("m", "c", "h", {"t": [0]} if assigned else {})])
+    row = ConsumerGroupStatus("dev", "g", "t", [PartitionLag(0, 10, 0, 10)] if committed else [])
+    with patch.object(lag, "CONFIG", {"clusters": [{"name": "dev", "bootstrap_servers": "kafka"}]}), patch.object(lag, "describe_groups", return_value={"g": desc}), patch.object(lag, "get_topics", return_value=["t"]), patch.object(lag, "update_group_state_streak"), patch.object(lag, "compute_lag_for_group", return_value=row):
+        rows = lag.compute_all_lags()
+    assert bool(rows) == expected
+
+
+def test_group_topic_match_still_filters_candidates():
+    from core import lag_calculator as lag
+    from core.kafka_client import GroupDescription
+    row = ConsumerGroupStatus("dev", "g", "g", [PartitionLag(0, 10, 0, 10)])
+    with patch.object(lag, "CONFIG", {"clusters": [{"name": "dev", "bootstrap_servers": "kafka"}], "monitor": {"group_topic_match": True}}), patch.object(lag, "describe_groups", return_value={"g": GroupDescription("g", "EMPTY", [])}), patch.object(lag, "get_topics", return_value=["g", "other"]), patch.object(lag, "update_group_state_streak"), patch.object(lag, "compute_lag_for_group", return_value=row) as compute:
+        assert lag.compute_all_lags() == [row]
+    compute.assert_called_once_with("dev", "kafka", "g", "g")

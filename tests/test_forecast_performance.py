@@ -103,7 +103,7 @@ def test_membership_once_per_cluster(database, monkeypatch):
     descriptions = {f"g{i}": GroupDescription(f"g{i}", "STABLE", [GroupMember("m", "c", "h", {"orders": [0]})]) for i in range(5)}
     with patch.object(lag, "describe_groups", return_value=descriptions) as describe:
         monkeypatch.setattr(lag, "get_topics", lambda _: [f"t{i}" for i in range(5)])
-        monkeypatch.setattr(lag, "compute_lag_for_group", lambda c, b, g, t: lag.ConsumerGroupStatus(c, g, t))
+        monkeypatch.setattr(lag, "compute_lag_for_group", lambda c, b, g, t: lag.ConsumerGroupStatus(c, g, t, [lag.PartitionLag(0, 10, 0, 10)]))
         assert len(lag.compute_all_lags()) == 50
         assert describe.call_count == 2
 

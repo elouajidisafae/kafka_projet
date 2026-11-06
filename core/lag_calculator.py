@@ -206,6 +206,10 @@ def compute_all_lags() -> list[ConsumerGroupStatus]:
                 if CONFIG.get("monitor", {}).get("group_topic_match", False) and topic != group:
                     continue
                 result = compute_lag_for_group(name, servers, group, topic)
+                # Failed reads cannot establish absence; preserve the ERROR.
+                assigned = any(member.assigned_partitions.get(topic) for member in desc.members)
+                if result.status != "ERROR" and not result.partitions and not assigned:
+                    continue
                 result.group_state = state
                 result.consumer_count = consumer_count_for_topic(desc, topic)
                 results.append(result)
