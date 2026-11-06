@@ -124,3 +124,46 @@ def test_cluster_outage_serves_stored_snapshot_then_recovers(tmp_path, monkeypat
     from pathlib import Path
     script = Path("static/js/dashboard.js").read_text(encoding="utf-8")
     assert "UNREACHABLE" in script and "STALE" in script and "last_successful_collection" in script
+
+
+
+def test_unknown_status_on_all_interfaces_without_false_lag(tmp_path, monkeypatch):
+    from dataclasses import asdict
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "unknown.db")
+    db.init_db()
+    unknown = ConsumerGroupStatus("demo", "new", "orders", partition_count=3, partitions_counted=0)
+    monkeypatch.setattr(web, "_current_rows", [asdict(unknown)])
+    client = TestClient(web.app)
+    assert client.get("/api/status").json()["data"][0]["status"] == "UNKNOWN"
+    metrics = client.get("/metrics").text
+    assert 'kafka_consumer_status{cluster="demo",group="new",topic="orders"} -2' in metrics
+    assert 'kafka_consumer_lag{cluster="demo",group="new",topic="orders"}' not in metrics
+    db.save_lag("demo", "new", "orders", 0, "UNKNOWN")
+    assert db.get_lag_history("demo", "new", "orders") == []
+    output = StringIO()
+    Console(file=output, width=180).print(cli_module._build_table([unknown]))
+    assert "UNKNOWN" in output.getvalue() and "N/A" in output.getvalue()
+
+
+def test_health_metrics_and_active_alert_dialog(monkeypatch):
+    from core.health_score import compute_health_score
+    row = ConsumerGroupStatus("demo", "payments", "orders", [PartitionLag(0, 12000, 0, 12000)], group_state="EMPTY")
+    summary = compute_health_score([row], {"offline": {"reachable": False}})
+    monkeypatch.setattr(web, "_last_health_score", summary)
+    monkeypatch.setattr(web, "_current_rows", [])
+    client = TestClient(web.app)
+    response = client.get("/api/health-score").json()
+    assert response["grade"] == "Critical"
+    assert response["active_alert_count"] == len(response["active_alerts"]) == 3
+    output = client.get("/metrics").text
+    expected = {"worst_state": 2, "critical_pairs": 1, "warning_pairs": 0,
+                "stopped_pairs": 1, "waiting_messages": 12000, "unreachable_clusters": 1,
+                "error_pairs": 0, "unknown_pairs": 0}
+    for field, value in expected.items():
+        assert f"# TYPE khm_health_{field} gauge" in output
+        assert f"khm_health_{field} {value}\n" in output
+    assert 'khm_health_unreachable_clusters{cluster="offline"} 1' in output
+    assert 'khm_health_worst_state{cluster="demo"} 2' in output
+    assert 'khm_health_score{cluster="demo"} 0' in output
+    page = client.get("/").text
+    assert 'id="active-alert-total"' in page and 'id="active-alert-dialog"' in page

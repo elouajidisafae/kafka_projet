@@ -28,7 +28,7 @@ def test_all_ok_and_no_data():
     assert compute_health_score([row("OK")])["score"] == 100
     empty = compute_health_score([])
     assert empty["total_groups"] == 0 and empty["by_cluster"] == []
-    assert empty["grade"] != compute_health_score([row("OK")])["grade"]
+    assert empty["grade"] == empty["score_band"] == "Excellent"
 
 
 def test_requested_intermediate_scores():
@@ -36,3 +36,72 @@ def test_requested_intermediate_scores():
     result = compute_health_score([row("OK", "EMPTY")] + [row("OK") for _ in range(3)])
     assert result["score"] == 95
     assert result["by_cluster"][0]["score"] == result["score"]
+
+
+from core.lag_calculator import ConsumerGroupStatus, PartitionLag
+
+
+def pair(status="OK", state="STABLE", cluster="demo", lag=0, group="payments"):
+    # Explicit lag drives the real pair classification.
+    return ConsumerGroupStatus(cluster, group, "orders", [PartitionLag(0, lag, 0, lag)], group_state=state)
+
+
+def test_critical_stopped_pair_cannot_hide_among_one_hundred():
+    rows = [pair(group=f"g{i}") for i in range(99)] + [pair(state="EMPTY", lag=12000)]
+    result = compute_health_score(rows)
+    assert result["score"] == round(100 * (1 - (.6 + .15) / 75)) == 99
+    assert result["details"]["penalty_critical"] == .6
+    assert result["details"]["penalty_state"] == .15
+    assert result["grade"] == "Critical" and result["score_band"] == "Excellent"
+    assert result["availability"] == {"stopped_pairs": 1, "waiting_messages": 12000}
+    assert result["performance"] == {"critical": 1, "warning": 0}
+    assert result["worst_state"] == 2 and result["color"] == "#f87171"
+    assert any("payments/orders" in reason for reason in result["ceiling_reasons"])
+    assert result["by_cluster"][0]["grade"] == "Critical"
+
+
+def test_unreachable_cluster_is_counted_without_using_its_stale_lag():
+    result = compute_health_score([pair(cluster="live"), pair(cluster="offline", state="EMPTY", lag=12000)],
+                                  {"live": {"reachable": True}, "offline": {"reachable": False, "error": "offline"}})
+    assert result["score"] == 100 and result["total_groups"] == 1
+    assert result["grade"] == "Degraded"
+    assert result["monitoring"]["unreachable_clusters"] == 1
+    assert result["performance"]["critical"] == 0
+    assert result["availability"]["stopped_pairs"] == 0
+    clusters = {c["cluster_name"]: c for c in result["by_cluster"]}
+    assert clusters["live"]["grade"] == "Excellent"
+    assert clusters["offline"]["grade"] == "Degraded"
+    assert clusters["offline"]["monitoring"]["unreachable_clusters"] == 1
+
+
+def test_unknown_error_and_stale_excluded_from_number_but_monitoring_counted():
+    unknown = ConsumerGroupStatus("demo", "new", "orders", partition_count=3, partitions_counted=0)
+    assert unknown.status == "UNKNOWN"
+    error = ConsumerGroupStatus("demo", "broken", "orders", status="ERROR")
+    stale = pair(state="EMPTY", lag=12000)
+    stale.stale = True
+    result = compute_health_score([pair(lag=1500), unknown, error, stale])
+    assert result["total_groups"] == 1
+    assert result["score"] == 67
+    assert result["monitoring"] == {"unreachable_clusters": 0, "error_pairs": 1, "unknown_pairs": 1}
+    assert result["grade"] == "Degraded"
+    assert result["by_cluster"][0]["monitoring"] == result["monitoring"]
+
+
+@pytest.mark.parametrize("rows", [[], [pair()], [pair(state="EMPTY")]])
+def test_no_active_alerts_uses_score_band(rows):
+    result = compute_health_score(rows)
+    assert result["grade"] == result["score_band"]
+    assert result["active_alert_count"] == 0 and result["ceiling"] is None
+    assert result["worst_state"] == 0
+
+
+def test_ceiling_never_improves_a_worse_score_band():
+    result = compute_health_score([pair(state="DEAD", lag=1500)])
+    assert result["grade"] == "Critical"
+    assert result["score"] == 47
+    # A warning on a stopped group with no known waiting messages is not availability.
+    r = row("WARNING", "EMPTY")
+    result = compute_health_score([r])
+    assert result["score_band"] == result["grade"] == "Poor"
+    assert result["ceiling"] == "Degraded"

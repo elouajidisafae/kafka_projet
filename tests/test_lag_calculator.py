@@ -283,3 +283,20 @@ def test_cluster_audits_only_failure_and_recovery(tmp_path, monkeypatch):
     assert all(e["event_type"] == "SYSTEM" for e in events)
     assert any("failed" in e["message"] for e in events)
     assert any("recovered" in e["message"] for e in events)
+
+
+
+def test_read_with_no_committed_partitions_is_unknown(monkeypatch):
+    from core import lag_calculator as lag
+    from confluent_kafka import TopicPartition
+    probe = MagicMock()
+    probe.list_topics.return_value.topics = {"orders": MagicMock(partitions={0: None})}
+    probe.get_watermark_offsets.return_value = (0, 100)
+    consumer = MagicMock()
+    consumer.committed.return_value = [TopicPartition("orders", 0, -1001)]
+    monkeypatch.setattr(lag, "_make_consumer", lambda *a: probe)
+    monkeypatch.setattr(lag, "client", lambda *a: consumer)
+    result = lag.compute_lag_for_group("unknown-test", "kafka", "new", "orders")
+    assert result.status == "UNKNOWN"
+    assert result.partitions_without_commit == 1
+    assert result.partitions_counted == 0
