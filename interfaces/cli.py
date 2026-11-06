@@ -35,11 +35,12 @@ def _build_table(results: list[ConsumerGroupStatus], cluster_filter=None) -> Tab
     table.add_column("Consumer Group", style="bold",  min_width=20)
     table.add_column("Topic",                         min_width=12)
     table.add_column("Partitions",     justify="center")
+    table.add_column("No commit", justify="right")
     table.add_column("Total Lag",      justify="right", min_width=10)
     table.add_column("Status",         justify="center", min_width=12)
 
     if not results:
-        table.add_row("[dim]Aucun résultat[/dim]", "", "", "", "", "")
+        table.add_row("[dim]Aucun résultat[/dim]", "", "", "", "", "", "")
         return table
 
     for r in results:
@@ -50,6 +51,7 @@ def _build_table(results: list[ConsumerGroupStatus], cluster_filter=None) -> Tab
             r.group_id,
             r.topic,
             str(len(r.partitions)),
+            str(r.partitions_without_commit) if r.partitions_without_commit is not None else "N/A",
             lag_display,
             status_text,
             style=row_style if r.status == "CRITICAL" else "",

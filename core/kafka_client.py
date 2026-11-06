@@ -109,41 +109,6 @@ def get_log_end_offsets(topic: str) -> dict[int, int]:
         consumer.close()
 
 
-def get_committed_offsets(group_id: str, topic: str, bootstrap_servers: str) -> dict[int, int]:
-    """
-    Lit les committed offsets via AdminClient — plus fiable que Consumer.
-    """
-    from confluent_kafka import TopicPartition
-    from confluent_kafka.admin import AdminClient
-
-    admin = client(AdminClient, {"bootstrap.servers": bootstrap_servers}, locals().get("cluster_name", ""))
-
-    try:
-        # Récupère les partitions du topic
-        metadata = admin.list_topics(topic, timeout=10)
-        partitions = metadata.topics[topic].partitions
-        topic_partitions = [TopicPartition(topic, pid) for pid in partitions.keys()]
-
-        # list_consumer_group_offsets lit les vrais committed offsets
-        result = admin.list_consumer_group_offsets(
-            [{"group.id": group_id, "partitions": topic_partitions}]
-        )
-
-        committed_offsets = {}
-        for res in result:
-            future = result[res]
-            group_result = future.result()
-            for tp, offset_info in group_result.topic_partitions.items():
-                offset = offset_info.offset if offset_info.offset >= 0 else 0
-                committed_offsets[tp.partition] = offset
-
-        return committed_offsets
-
-    except Exception as e:
-        print(f"[kafka_client] Erreur committed offsets {group_id}/{topic}: {e}")
-        return {}
-    
-    
 def normalize_group_state(state) -> str:
     value = str(state).rsplit(".", 1)[-1].upper()
     return {

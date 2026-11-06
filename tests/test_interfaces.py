@@ -58,3 +58,16 @@ def test_error_is_live_but_never_history(tmp_path, monkeypatch):
     output = StringIO()
     Console(file=output, width=180).print(cli_module._build_table([row]))
     assert "ERROR" in output.getvalue()
+
+
+def test_unknown_partitions_visible(monkeypatch):
+    from dataclasses import asdict
+    row = ConsumerGroupStatus("dev", "g", "t", [PartitionLag(0, 100, 90, 10)], partition_count=3)
+    assert row.partitions_without_commit == 2
+    monkeypatch.setattr(web, "_current_rows", [asdict(row)])
+    client = TestClient(web.app)
+    assert client.get("/api/status").json()["data"][0]["partitions_without_commit"] == 2
+    assert 'kafka_consumer_partitions_without_commit{cluster="dev",group="g",topic="t"} 2' in client.get("/metrics").text
+    output = StringIO()
+    Console(file=output, width=180).print(cli_module._build_table([row]))
+    assert "No commit" in output.getvalue()

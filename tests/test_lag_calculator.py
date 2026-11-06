@@ -202,6 +202,7 @@ class TestInvalidCommittedOffsets:
 
         assert result.partition_count == 3
         assert result.partitions_counted == 2
+        assert result.partitions_without_commit == 1
         assert [p.partition_id for p in result.partitions] == [0, 2]
         assert result.total_lag == (100 - 90) + (300 - 250)
 

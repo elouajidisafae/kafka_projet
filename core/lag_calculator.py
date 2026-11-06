@@ -35,6 +35,7 @@ class ConsumerGroupStatus:
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     partition_count: int | None = None
     partitions_counted: int | None = None
+    partitions_without_commit: int | None = None
 
     def __post_init__(self):
         if self.partition_count is None:
@@ -44,6 +45,8 @@ class ConsumerGroupStatus:
         if self.status == "ERROR":
             self.total_lag = -1
             return
+        if self.partitions_without_commit is None:
+            self.partitions_without_commit = self.partition_count - self.partitions_counted
         self.total_lag = sum(p.lag for p in self.partitions)
         self.status = _compute_status(self.total_lag)
 
@@ -140,8 +143,8 @@ def compute_lag_for_group(
             PartitionLag(
                 partition_id=pid,
                 log_end_offset=leo,
-                committed_offset=committed_offsets.get(pid, 0),
-                lag=max(0, leo - committed_offsets.get(pid, 0)),
+                committed_offset=committed_offsets[pid],
+                lag=max(0, leo - committed_offsets[pid]),
             )
             for pid, leo in end_offsets.items()
             if pid in committed_offsets

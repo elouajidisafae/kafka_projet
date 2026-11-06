@@ -110,6 +110,7 @@ async function refresh() {
         <td><strong>${r.group_id}</strong></td>
         <td>${r.topic}</td>
         <td style="text-align:right;font-variant-numeric:tabular-nums">${fmt(r.total_lag)}</td>
+        <td>${r.partitions_without_commit ?? "N/A"}</td>
         <td>${badge(r.status)}</td>
         <td>${stateBadge(r.group_state || 'Unknown')}</td>
         <td style="color:#475569;font-size:.75rem">

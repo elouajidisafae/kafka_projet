@@ -250,6 +250,13 @@ def metrics():
     for row in rows:
         label = f'cluster="{row["cluster_name"]}",group="{row["group_id"]}",topic="{row["topic"]}"'
         lines.append(f"kafka_consumer_status{{{label}}} {status_map.get(row['status'], -1)}")
+    lines.append("# HELP kafka_consumer_partitions_without_commit Partitions with unknown lag due to missing commits")
+    lines.append("# TYPE kafka_consumer_partitions_without_commit gauge")
+    for row in rows:
+        count = row.get("partitions_without_commit")
+        if count is not None:
+            label = f'cluster="{row["cluster_name"]}",group="{row["group_id"]}",topic="{row["topic"]}"'
+            lines.append(f"kafka_consumer_partitions_without_commit{{{label}}} {count}")
     from core.timing import prometheus_lines
     lines.extend(prometheus_lines())
     lines.append("# HELP khm_health_score Normalised health score; absent before first collection")
