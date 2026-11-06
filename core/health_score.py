@@ -5,13 +5,20 @@ warning statuses are mutually exclusive. Counts refer to group-topic pairs.
 """
 
 
+def _measured(results):
+    return [r for r in results if r.status not in {"ERROR", "UNKNOWN"}
+            and not getattr(r, "stale", False)
+            and not (getattr(r, "partition_count", 0) and getattr(r, "partitions_counted", None) == 0)]
+
+
 def _components(results):
+    results = _measured(results)
     total = len(results)
     critical = sum(r.status == "CRITICAL" for r in results)
     warning = sum(r.status == "WARNING" for r in results)
     empty = sum(str(getattr(r, "group_state", "")).upper() in {"EMPTY", "DEAD"} for r in results)
-    penalties = (round(60 * critical / total), round(25 * warning / total),
-                 round(15 * empty / total)) if total else (0, 0, 0)
+    penalties = (60 * critical / total, 25 * warning / total,
+                 15 * empty / total) if total else (0, 0, 0)
     score = max(0, min(100, round(100 * (1 - sum(penalties) / 75))))
     return critical, warning, empty, penalties, score
 
@@ -47,6 +54,7 @@ def compute_health_score(results: list) -> dict:
     Calcule le Health Score global à partir des résultats de lag.
     Utilise _compute_single_score pour les clusters — pas de recursion.
     """
+    results = _measured(results)
     if not results:
         return _empty_score()
 

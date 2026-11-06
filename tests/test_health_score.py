@@ -20,7 +20,7 @@ def test_worst_case_reaches_zero_with_case_normalisation(state):
 
 def test_global_and_cluster_scores_use_the_same_normalisation():
     result = compute_health_score([row("OK"), row("CRITICAL", "EMPTY", "other")])
-    assert result["score"] == round(100 * (1 - (30 + 8) / 75))
+    assert result["score"] == round(100 * (1 - (30 + 7.5) / 75))
     assert [c["score"] for c in result["by_cluster"]] == [100, 0]
 
 
