@@ -154,7 +154,7 @@ def test_health_metrics_and_active_alert_dialog(monkeypatch):
     client = TestClient(web.app)
     response = client.get("/api/health-score").json()
     assert response["grade"] == "Critical"
-    assert response["active_alert_count"] == len(response["active_alerts"]) == 3
+    assert response["active_alert_count"] == len(response["active_alerts"]) == 2
     output = client.get("/metrics").text
     expected = {"worst_state": 2, "critical_pairs": 1, "warning_pairs": 0,
                 "stopped_pairs": 1, "waiting_messages": 12000, "unreachable_clusters": 1,

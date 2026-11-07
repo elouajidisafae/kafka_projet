@@ -101,6 +101,7 @@ def run():
             status = api("/api/status")
             if (health.get("score") == 56 and health.get("grade") == "Critical"
                     and health.get("availability", {}).get("stopped_pairs") == 1
+                    and health.get("active_alert_count") == 2
                     and sorted(r["status"] for r in status["data"]) == ["CRITICAL", "OK", "WARNING"]):
                 break
             if time.monotonic() >= deadline:

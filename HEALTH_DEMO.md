@@ -21,7 +21,7 @@ No forecast or recommendation configuration is changed by this script.
 The unchanged equation now uses unrounded penalties 20, 25/3 and 5:
 `round(100 * (1 - (20 + 25/3 + 5) / 75)) = 56`.
 The numeric band is Degraded; the critical/stopped state sets the final label to Critical.
-There are three active conditions: critical lag, warning lag and stopped-group availability.
+There are two active problem pairs. The critical pair lists both critical lag and stopped-group availability; the warning pair lists warning lag.
 
 Outputs are under a new `artifacts/health-demo-<UTC timestamp>/` directory:
 `figure-overview.png`, `figure-active-alerts.png`, health/status JSON, config, database and manifest.

@@ -130,3 +130,14 @@ def test_empty_caught_up_group_is_not_penalised():
     assert result["score"] == 100 and result["grade"] == "Excellent"
     assert result["details"]["penalty_state"] == 0
     assert result["availability"]["stopped_pairs"] == result["n_empty"] == 0
+
+
+
+def test_paper_scenario_counts_problem_pairs_not_conditions():
+    result = compute_health_score([pair(state="EMPTY", lag=12000), pair(group="warning", lag=1500), pair(group="healthy")])
+    assert result["score"] == 56 and result["grade"] == "Critical"
+    assert result["active_alert_count"] == len(result["active_alerts"]) == 2
+    critical = next(item for item in result["active_alerts"] if item["group_id"] == "payments")
+    assert len(critical["reasons"]) == 2
+    assert len(result["ceiling_reasons"]) == 2
+    assert "CRITICAL" in critical["message"] and "waiting messages" in critical["message"]

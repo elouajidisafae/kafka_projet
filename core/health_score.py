@@ -82,6 +82,20 @@ def _active_alerts(results, cluster_status):
     return alerts
 
 
+def _problem_items(conditions):
+    items = {}
+    for condition in conditions:
+        key = (condition["cluster_name"], condition.get("group_id"), condition.get("topic"))
+        if key not in items:
+            items[key] = dict(condition, reasons=[])
+        item = items[key]
+        item["reasons"].append(condition["message"])
+        item["severity"] = max(item["severity"], condition["severity"])
+    for item in items.values():
+        item["message"] = "; ".join(item["reasons"])
+    return list(items.values())
+
+
 def _apply_label(summary, results, cluster_status):
     alerts = _active_alerts(results, cluster_status)
     worst = max((a["severity"] for a in alerts), default=0)
@@ -90,10 +104,11 @@ def _apply_label(summary, results, cluster_status):
     ceiling = "Critical" if worst == 2 else "Degraded" if worst == 1 else None
     final = ceiling if band == "No data" and ceiling else labels[min(labels.index(band), labels.index(ceiling))] if ceiling else band
     colors = ["#f87171", "#fb923c", "#facc15", "#4ade80", "#22c55e"]
+    items = _problem_items(alerts)
     summary.update(score_band=band, grade=final, color=colors[labels.index(final)] if final in labels else "#64748b",
                    ceiling=ceiling, worst_state=worst,
                    ceiling_reasons=[a["message"] for a in alerts if a["severity"] == worst],
-                   active_alerts=alerts, active_alert_count=len(alerts))
+                   active_alerts=items, active_alert_count=len(items))
     return summary
 
 
