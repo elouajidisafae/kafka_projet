@@ -1,8 +1,14 @@
 """Health scores normalised by the maximum attainable penalty (75).
 
-Fixed weights: critical 60, warning 25, empty/dead 15. Critical and
+Fixed weights: critical 60, warning 25, stopped with waiting messages 15.
+The state penalty counts only EMPTY/DEAD pairs with measured lag above zero,
+exactly like the availability count. Critical and
 warning statuses are mutually exclusive. Counts refer to group-topic pairs.
 """
+
+
+def _stopped(row):
+    return str(getattr(row, "group_state", "")).upper() in {"EMPTY", "DEAD"} and getattr(row, "total_lag", 0) > 0
 
 
 def _measured(results):
@@ -16,7 +22,7 @@ def _components(results):
     total = len(results)
     critical = sum(r.status == "CRITICAL" for r in results)
     warning = sum(r.status == "WARNING" for r in results)
-    empty = sum(str(getattr(r, "group_state", "")).upper() in {"EMPTY", "DEAD"} for r in results)
+    empty = sum(_stopped(r) for r in results)
     penalties = (60 * critical / total, 25 * warning / total,
                  15 * empty / total) if total else (0, 0, 0)
     score = max(0, min(100, round(100 * (1 - sum(penalties) / 75)))) if total else None
@@ -41,8 +47,7 @@ def _indicators(results, cluster_status):
     fresh = [r for r in results if not getattr(r, "stale", False)
              and cluster_status.get(r.cluster_name, {}).get("reachable", True)]
     measured = _measured(fresh)
-    stopped = [r for r in measured if str(getattr(r, "group_state", "")).upper() in {"EMPTY", "DEAD"}
-               and getattr(r, "total_lag", 0) > 0]
+    stopped = [r for r in measured if _stopped(r)]
     return {
         "performance": {"critical": sum(r.status == "CRITICAL" for r in measured),
                         "warning": sum(r.status == "WARNING" for r in measured)},
@@ -71,7 +76,7 @@ def _active_alerts(results, cluster_status):
         if row.status in {"CRITICAL", "WARNING", "ERROR", "UNKNOWN"}:
             alerts.append(dict(details, kind=row.status.lower(), severity=2 if row.status == "CRITICAL" else 1,
                                message=f"{row.status} pair: {target}"))
-        if row in _measured([row]) and str(getattr(row, "group_state", "")).upper() in {"EMPTY", "DEAD"} and getattr(row, "total_lag", 0) > 0:
+        if row in _measured([row]) and _stopped(row):
             alerts.append(dict(details, kind="stopped_pair", severity=2,
                                message=f"1 stopped group with waiting messages: {target} ({row.total_lag} messages)"))
     return alerts

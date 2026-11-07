@@ -6,7 +6,8 @@ from core.health_score import compute_health_score
 
 
 def row(status, state="STABLE", cluster="demo"):
-    return SimpleNamespace(status=status, group_state=state, cluster_name=cluster)
+    return SimpleNamespace(status=status, group_state=state, cluster_name=cluster,
+                           total_lag=12000 if status == "CRITICAL" else 1500 if status == "WARNING" else 0)
 
 
 @pytest.mark.parametrize("state", ["EMPTY", "DEAD", "Empty", "Dead", "empty", "dead"])
@@ -35,7 +36,7 @@ def test_all_ok_and_no_data():
 def test_requested_intermediate_scores():
     assert compute_health_score([row("CRITICAL")])["score"] == 20
     result = compute_health_score([row("OK", "EMPTY")] + [row("OK") for _ in range(3)])
-    assert result["score"] == 95
+    assert result["score"] == 100
     assert result["by_cluster"][0]["score"] == result["score"]
 
 
@@ -103,8 +104,9 @@ def test_ceiling_never_improves_a_worse_score_band():
     assert result["score"] == 47
     # A warning on a stopped group with no known waiting messages is not availability.
     r = row("WARNING", "EMPTY")
+    r.total_lag = 0
     result = compute_health_score([r])
-    assert result["score_band"] == result["grade"] == "Poor"
+    assert result["score_band"] == result["grade"] == "Degraded"
     assert result["ceiling"] == "Degraded"
 
 
@@ -120,3 +122,11 @@ def test_all_clusters_unreachable_have_no_numeric_score():
 def test_all_unmeasured_pairs_have_no_score(status):
     result = compute_health_score([row(status)])
     assert result["score"] is None and result["grade"] == "Degraded"
+
+
+
+def test_empty_caught_up_group_is_not_penalised():
+    result = compute_health_score([pair(group=f"g{i}") for i in range(9)] + [pair(state="EMPTY")])
+    assert result["score"] == 100 and result["grade"] == "Excellent"
+    assert result["details"]["penalty_state"] == 0
+    assert result["availability"]["stopped_pairs"] == result["n_empty"] == 0
