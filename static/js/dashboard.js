@@ -301,8 +301,10 @@ async function refreshHealthScore() {
   if (primary) {
     const stopped = primary.match(/^(\d+) stopped group with waiting messages: .* \((\d+) messages\)$/);
     if (stopped) explanation = `${counted(Number(stopped[1]), 'stopped group')} with ${Number(stopped[2]).toLocaleString('en-GB')} waiting messages`;
-    explanation = `${json.grade}: ${explanation}`;
-    if (reasons.length > 1) explanation += ` + ${reasons.length - 1} more`;
+    const problemKeys = new Set((json.active_alerts || []).map(item =>
+      JSON.stringify([item.cluster_name, item.group_id || null, item.topic || null])));
+    const otherItems = Math.max(0, problemKeys.size - 1);
+    if (otherItems) explanation += ` + ${otherItems} more`;
   }
   detail.textContent = explanation;
   detail.removeAttribute('title');

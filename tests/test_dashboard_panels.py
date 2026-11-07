@@ -67,7 +67,7 @@ def test_overview_panel_counts_filters_and_themes(browser,theme,cluster_count):
         page.wait_for_function("document.getElementById('score-value').textContent === '56'")
         assert page.locator(".cards .card").count()==5
         assert [page.locator("#"+id).inner_text() for id in ["c-total","c-crit","c-warn","c-stopped","c-monitoring"]]==[str(4+cluster_count),"1","1","1",str(1+cluster_count)]
-        assert page.locator("#score-detail").inner_text()=="Critical: 1 stopped group with 12,000 waiting messages + 1 more"
+        assert page.locator("#score-detail").inner_text()==f"1 stopped group with 12,000 waiting messages + {cluster_count + 2} more"
         assert page.locator(".cluster-monitor-count").inner_text()==f"{cluster_count} {'cluster' if cluster_count==1 else 'clusters'} monitored"
         assert page.locator(".cluster-summary-line").count()==(2 if cluster_count==2 else 0)
         assert page.locator("#active-alert-total, #active-alert-dialog").count()==0
@@ -102,6 +102,10 @@ def test_overview_panel_counts_filters_and_themes(browser,theme,cluster_count):
         output.mkdir(parents=True,exist_ok=True)
         page.screenshot(path=str(output/f"{theme}-{cluster_count}-clusters.png"),full_page=True,animations="disabled")
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        # One critical/stopped pair has two reasons but no other problem item.
+        health["value"]=compute_health_score([values[0]],{"demo":{"reachable":True}})
+        page.evaluate("refreshHealthScore()")
+        assert page.locator("#score-detail").inner_text()=="1 stopped group with 12,000 waiting messages"
         # Every panel remains visible at zero; clearing data must not retain old counts.
         payload.update(data=[],cluster_status={name:{"reachable":True} for name in states})
         health["value"]=compute_health_score([],{name:{"reachable":True} for name in states})
