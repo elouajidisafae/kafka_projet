@@ -145,7 +145,7 @@ def test_unknown_status_on_all_interfaces_without_false_lag(tmp_path, monkeypatc
     assert "UNKNOWN" in output.getvalue() and "N/A" in output.getvalue()
 
 
-def test_health_metrics_and_active_alert_dialog(monkeypatch):
+def test_health_metrics_and_overview_panels(monkeypatch):
     from core.health_score import compute_health_score
     row = ConsumerGroupStatus("demo", "payments", "orders", [PartitionLag(0, 12000, 0, 12000)], group_state="EMPTY")
     summary = compute_health_score([row], {"offline": {"reachable": False}})
@@ -166,7 +166,10 @@ def test_health_metrics_and_active_alert_dialog(monkeypatch):
     assert 'khm_health_worst_state{cluster="demo"} 2' in output
     assert 'khm_health_score{cluster="demo"} 0' in output
     page = client.get("/").text
-    assert 'id="active-alert-total"' in page and 'id="active-alert-dialog"' in page
+    assert 'id="active-alert-total"' not in page and 'id="active-alert-dialog"' not in page
+    for label in ("Pairs monitored", "Critical", "Warning", "Stopped", "Monitoring problems"):
+        assert label in page
+    assert page.count('data-filter=') == 5
 
 
 

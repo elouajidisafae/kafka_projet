@@ -24,7 +24,9 @@ The numeric band is Degraded; the critical/stopped state sets the final label to
 There are two active problem pairs. The critical pair lists both critical lag and stopped-group availability; the warning pair lists warning lag.
 
 Outputs are under a new `artifacts/health-demo-<UTC timestamp>/` directory:
-`figure-overview.png`, `figure-active-alerts.png`, health/status JSON, config, database and manifest.
+`figure-overview.png`, health/status JSON, config, database and manifest.
+The overview has five panels: 3 pairs monitored, 1 critical, 1 warning, 1 stopped,
+and 0 monitoring problems. There is no alerts badge or modal.
 These are illustrative live demo captures, not new benchmark performance evidence.
 The script closes its members after capture; subsequent live availability counts will change.
 It leaves the demo Docker stack running. To stop it afterwards:

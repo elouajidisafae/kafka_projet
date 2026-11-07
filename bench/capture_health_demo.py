@@ -117,10 +117,12 @@ def run():
             page.goto("http://127.0.0.1:8080", wait_until="networkidle")
             page.evaluate("async () => { await refresh(); await refreshHealthScore(); }")
             page.wait_for_function("document.getElementById('score-value').textContent === '56' && document.getElementById('score-grade').textContent === 'Critical'")
+            page.wait_for_function("['c-total','c-crit','c-warn','c-stopped','c-monitoring'].map(id => document.getElementById(id).textContent).join(',') === '3,1,1,1,0'")
+            assert page.locator('#active-alert-dialog').count() == 0
+            assert page.locator('#active-alert-total').count() == 0
             page.evaluate("document.fonts.ready")
             page.screenshot(path=str(output / "figure-overview.png"), full_page=True, animations="disabled")
-            page.click("#active-alert-total")
-            page.screenshot(path=str(output / "figure-active-alerts.png"), full_page=True, animations="disabled")
+
             browser.close()
         (output / "health-score.json").write_text(json.dumps(health, indent=2), encoding="utf-8")
         (output / "status.json").write_text(json.dumps(status, indent=2), encoding="utf-8")
