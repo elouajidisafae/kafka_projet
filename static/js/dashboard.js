@@ -1,5 +1,4 @@
 const counted = (n, singular, plural = `${singular}s`) => `${n} ${n === 1 ? singular : plural}`;
-let activeHealthAlerts = [];
 let chart = null;
 let forecastChart = null;
 let displayedForecasts = [];
@@ -256,13 +255,20 @@ async function refreshHealthScore() {
   document.getElementById('score-grade').textContent = json.grade || 'No data';
   document.getElementById('score-grade').style.color = color;
 
-  activeHealthAlerts = json.active_alerts || [];
-  document.getElementById('active-alert-total').textContent = counted(json.active_alert_count || 0, 'active alert');
-  const p = json.performance || {}, a = json.availability || {}, m = json.monitoring || {};
+  const reasons = json.ceiling_reasons || [];
   const detail = document.getElementById('score-detail');
-  detail.textContent = `Performance: ${p.critical || 0} critical, ${p.warning || 0} warning. Availability: ${counted(a.stopped_pairs || 0, "stopped pair")}, ${counted(a.waiting_messages || 0, "waiting message")}. Monitoring: ${counted(m.unreachable_clusters || 0, "unreachable cluster")}, ${counted(m.error_pairs || 0, "error pair")}, ${counted(m.unknown_pairs || 0, "unknown pair")}.`;
-  detail.title = (json.ceiling_reasons || []).join('; ');
-  if (document.getElementById('active-alert-dialog').open) renderActiveAlerts();
+  // All ceiling reasons already have the worst active severity; prefer the
+  // concrete waiting-message reason when that severity has several causes.
+  const primary = reasons.find(reason => reason.includes('stopped group with waiting messages')) || reasons[0];
+  let explanation = primary || 'No active problems';
+  if (primary) {
+    const stopped = primary.match(/^(\d+) stopped group with waiting messages: .* \((\d+) messages\)$/);
+    if (stopped) explanation = `${counted(Number(stopped[1]), 'stopped group')} with ${Number(stopped[2]).toLocaleString('en-GB')} waiting messages`;
+    explanation = `${json.grade}: ${explanation}`;
+    if (reasons.length > 1) explanation += ` + ${reasons.length - 1} more`;
+  }
+  detail.textContent = explanation;
+  detail.removeAttribute('title');
 
   const circumference = 188.5;
   const offset = circumference - ((score ?? 0) / 100) * circumference;
@@ -274,52 +280,21 @@ async function refreshHealthScore() {
   }
 
   const clusterDiv = document.getElementById('cluster-scores');
-  if (clusterDiv && json.by_cluster) {
-    clusterDiv.innerHTML = json.by_cluster.map(c => `
-      <div style="text-align:center;min-width:80px">
-        <div style="font-size:1.4rem;font-weight:700;color:${c.color}">${c.score == null ? 'No data' : c.score} \u2014 ${c.grade}</div>
-        <div style="font-size:.7rem;color:#64748b;text-transform:uppercase;
-                    letter-spacing:.5px">${c.cluster_name}</div>
-        <div style="font-size:.7rem;color:#475569">Performance: ${c.performance.critical} critical, ${c.performance.warning} warning<br>Availability: ${counted(c.availability.stopped_pairs, "stopped pair")}, ${counted(c.availability.waiting_messages, "waiting message")}<br>Monitoring: ${counted(c.monitoring.unreachable_clusters, "unreachable cluster")}, ${counted(c.monitoring.error_pairs, "error pair")}, ${counted(c.monitoring.unknown_pairs, "unknown pair")}</div>
-      </div>
-    `).join('<div style="width:1px;background:#2d3148"></div>');
-  }
-}
-
-function renderActiveAlerts() {
-  const container = document.getElementById('active-alert-list');
-  container.replaceChildren();
-  if (!activeHealthAlerts.length) container.textContent = 'No active alerts.';
-  activeHealthAlerts.forEach(alert => {
-    const item = document.createElement('article');
-    item.className = 'active-alert-item';
-    const heading = document.createElement('h3');
-    heading.textContent = alert.group_id ? `${alert.cluster_name} / ${alert.group_id} / ${alert.topic}` : alert.cluster_name;
-    item.appendChild(heading);
-    const reasons = document.createElement('ul');
-    (alert.reasons || [alert.message]).forEach(reason => {
-      const line = document.createElement('li');
-      line.textContent = reason;
-      reasons.appendChild(line);
+  const clusters = json.by_cluster || [];
+  clusterDiv.replaceChildren();
+  const count = document.createElement('div');
+  count.className = 'cluster-monitor-count';
+  count.textContent = `${counted(clusters.length, 'cluster')} monitored`;
+  clusterDiv.appendChild(count);
+  if (clusters.length > 1) {
+    clusters.forEach(cluster => {
+      const line = document.createElement('div');
+      line.className = 'cluster-summary-line';
+      line.style.color = cluster.color;
+      line.textContent = `${cluster.cluster_name}: ${cluster.score == null ? 'No data' : cluster.score} \u2014 ${cluster.grade}`;
+      clusterDiv.appendChild(line);
     });
-    item.appendChild(reasons);
-    const details = [];
-    if (alert.lag != null && alert.lag >= 0) details.push(`Lag: ${alert.lag}`);
-    if (alert.group_state) details.push(`Group state: ${alert.group_state}`);
-    if (alert.error) details.push(`Error: ${alert.error}`);
-    if (alert.last_successful_collection) details.push(`Last successful collection: ${alert.last_successful_collection}`);
-    if (details.length) {
-      const metadata = document.createElement('p');
-      metadata.textContent = details.join('; ');
-      item.appendChild(metadata);
-    }
-    container.appendChild(item);
-  });
-}
-
-function openActiveAlerts() {
-  renderActiveAlerts();
-  document.getElementById('active-alert-dialog').showModal();
+  }
 }
 
 // ── Forecast chart ────────────────────────────────────────────────────────────

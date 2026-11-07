@@ -555,26 +555,13 @@ html.light .nav-link.active {
 .severity-info     { border-top: 3px solid var(--primary); }
 .suggestion-metrics { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.75rem; }
 
-/* Health summary and active problem items, shared by light and dark themes. */
-.score-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
-#active-alert-total, .dialog-close {
-  background: var(--surface-hover); color: var(--primary); border: 1px solid var(--border);
-  border-radius: 999px; padding: 5px 11px; font: inherit; font-size: .75rem;
-  font-weight: 600; cursor: pointer;
-}
-#active-alert-total:hover, .dialog-close:hover { border-color: var(--primary); }
-#active-alert-total:focus-visible, .dialog-close:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
-#active-alert-dialog {
-  width: min(760px, calc(100vw - 32px)); max-height: 80vh; margin: auto; overflow: auto;
-  background: var(--surface); color: var(--text); border: 1px solid var(--border);
-  border-radius: 14px; padding: 24px; box-shadow: 0 24px 80px #0005; line-height: 1.6;
-}
-#active-alert-dialog::backdrop { background: #0008; }
-.active-alert-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
-.active-alert-header h2 { font-size: 1.2rem; }
-.active-alert-item { margin-top: 16px; padding: 16px; background: var(--surface-hover); border: 1px solid var(--border); border-radius: 10px; overflow-wrap: anywhere; }
-.active-alert-item h3 { font-size: .9rem; margin-bottom: 8px; }
-.active-alert-item ul { padding-left: 20px; }
-.active-alert-item p { margin-top: 8px; font-size: .8rem; color: var(--text-muted); }
-#score-detail { max-width: 560px; white-space: normal; line-height: 1.6; }
+/* Compact health summary; counts appear only in the panels below. */
+.cluster-scores { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.cluster-monitor-count { font-size: .85rem; color: var(--text-muted); }
+.cluster-summary-line { font-size: .8rem; }
+#score-detail { max-width: 560px; white-space: normal; line-height: 1.6; font-size: .8rem; color: var(--text-muted); }
 .score-text #score-value { font-size: 1.25rem; }
+@media (max-width: 650px) {
+  .health-main { gap: 14px; }
+  .cluster-scores { align-items: flex-start; }
+}
