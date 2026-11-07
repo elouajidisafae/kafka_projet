@@ -156,6 +156,13 @@ def api_forecast():
     Basé sur une régression linéaire sur l'historique SQLite.
     """
     results = cached_forecast_display()
+    if any(not result.get("enough_data") for result in results):
+        # The keyed cache retains identity even when a fit has insufficient data.
+        # Add names only to the web response; keep fitter and persistence outputs unchanged.
+        from core.forecasting import forecasts_for_request
+        pending = [dict(value, cluster_name=key[0], group_id=key[1], topic=key[2])
+                   for key, value in forecasts_for_request().items() if not value.get("enough_data")]
+        results = [result for result in results if result.get("enough_data")] + pending
     return {"forecasts": results, "show_range": CONFIG.get("forecast", {}).get("show_range", False)}
 
 @app.get("/api/recommendations")

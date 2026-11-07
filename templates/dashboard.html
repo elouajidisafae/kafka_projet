@@ -47,8 +47,10 @@
           </div>
         </div>
         <div class="score-info">
-          <div class="score-label">Overall health score</div>
-          <button type="button" id="active-alert-total" onclick="openActiveAlerts()">0 active alerts</button>
+          <div class="score-heading">
+            <div class="score-label">Overall health score</div>
+            <button type="button" id="active-alert-total" aria-haspopup="dialog" aria-controls="active-alert-dialog" onclick="openActiveAlerts()">0 active alerts</button>
+          </div>
           <div id="score-grade">—</div>
           <div id="score-detail">—</div>
         </div>
@@ -58,10 +60,13 @@
     </div>
 
   <dialog id="active-alert-dialog" aria-labelledby="active-alert-title">
-    <h2 id="active-alert-title">Active alerts</h2>
+    <div class="active-alert-header">
+      <h2 id="active-alert-title">Active alerts</h2>
+      <form method="dialog"><button class="dialog-close" aria-label="Close active alerts">Close</button></form>
+    </div>
     <p>Each problem pair or unreachable cluster is counted once. All reasons are listed for each item.</p>
     <div id="active-alert-list"></div>
-    <form method="dialog"><button>Close</button></form>
+
   </dialog>
 
   <div class="cards">

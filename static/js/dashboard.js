@@ -1,3 +1,4 @@
+const counted = (n, singular, plural = `${singular}s`) => `${n} ${n === 1 ? singular : plural}`;
 let activeHealthAlerts = [];
 let chart = null;
 let forecastChart = null;
@@ -23,8 +24,8 @@ const badge = (status) => {
     OK:       ['ok',   '● OK'],
     WARNING:  ['warn', '▲ WARNING'],
     CRITICAL: ['crit', '✖ CRITICAL'],
-    ERROR:    ['err',  '? ERROR'],
-    UNKNOWN:  ['err',  '? UNKNOWN'],
+    ERROR:    ['err',  'ERROR'],
+    UNKNOWN:  ['err',  'UNKNOWN'],
   };
   const [cls, label] = map[status] || ['err', status];
   return `<span class="badge ${cls}">${label}</span>`;
@@ -105,7 +106,7 @@ async function refresh() {
   Object.entries(json.cluster_status || {}).forEach(([name, state]) => {
     if (state.reachable || (activeCluster && activeCluster !== name)) return;
     const notice = document.createElement('p');
-    notice.textContent = `${name}: UNREACHABLE ? stale snapshot. Last successful collection: ${state.last_successful_collection || 'none'}`;
+    notice.textContent = `${name}: UNREACHABLE \u2014 stale snapshot. Last successful collection: ${state.last_successful_collection || 'none'}`;
     clusterStatus.appendChild(notice);
   });
 
@@ -252,14 +253,14 @@ async function refreshHealthScore() {
 
   document.getElementById('score-value').textContent = score == null ? 'No data' : score;
   document.getElementById('score-value').style.color = color;
-  document.getElementById('score-grade').textContent = json.grade || '?';
+  document.getElementById('score-grade').textContent = json.grade || 'No data';
   document.getElementById('score-grade').style.color = color;
 
   activeHealthAlerts = json.active_alerts || [];
-  document.getElementById('active-alert-total').textContent = `${json.active_alert_count || 0} active alerts`;
+  document.getElementById('active-alert-total').textContent = counted(json.active_alert_count || 0, 'active alert');
   const p = json.performance || {}, a = json.availability || {}, m = json.monitoring || {};
   const detail = document.getElementById('score-detail');
-  detail.textContent = `Performance: ${p.critical || 0} critical, ${p.warning || 0} warning. Availability: ${a.stopped_pairs || 0} stopped pairs, ${a.waiting_messages || 0} waiting messages. Monitoring: ${m.unreachable_clusters || 0} unreachable clusters, ${m.error_pairs || 0} errors, ${m.unknown_pairs || 0} unknown.`;
+  detail.textContent = `Performance: ${p.critical || 0} critical, ${p.warning || 0} warning. Availability: ${counted(a.stopped_pairs || 0, "stopped pair")}, ${counted(a.waiting_messages || 0, "waiting message")}. Monitoring: ${counted(m.unreachable_clusters || 0, "unreachable cluster")}, ${counted(m.error_pairs || 0, "error pair")}, ${counted(m.unknown_pairs || 0, "unknown pair")}.`;
   detail.title = (json.ceiling_reasons || []).join('; ');
   if (document.getElementById('active-alert-dialog').open) renderActiveAlerts();
 
@@ -276,10 +277,10 @@ async function refreshHealthScore() {
   if (clusterDiv && json.by_cluster) {
     clusterDiv.innerHTML = json.by_cluster.map(c => `
       <div style="text-align:center;min-width:80px">
-        <div style="font-size:1.4rem;font-weight:700;color:${c.color}">${c.score == null ? 'No data' : c.score} ? ${c.grade}</div>
+        <div style="font-size:1.4rem;font-weight:700;color:${c.color}">${c.score == null ? 'No data' : c.score} \u2014 ${c.grade}</div>
         <div style="font-size:.7rem;color:#64748b;text-transform:uppercase;
                     letter-spacing:.5px">${c.cluster_name}</div>
-        <div style="font-size:.7rem;color:#475569">Performance: ${c.performance.critical} critical, ${c.performance.warning} warning<br>Availability: ${c.availability.stopped_pairs} stopped, ${c.availability.waiting_messages} messages<br>Monitoring: ${c.monitoring.unreachable_clusters} unreachable, ${c.monitoring.error_pairs} errors, ${c.monitoring.unknown_pairs} unknown</div>
+        <div style="font-size:.7rem;color:#475569">Performance: ${c.performance.critical} critical, ${c.performance.warning} warning<br>Availability: ${counted(c.availability.stopped_pairs, "stopped pair")}, ${counted(c.availability.waiting_messages, "waiting message")}<br>Monitoring: ${counted(c.monitoring.unreachable_clusters, "unreachable cluster")}, ${counted(c.monitoring.error_pairs, "error pair")}, ${counted(c.monitoring.unknown_pairs, "unknown pair")}</div>
       </div>
     `).join('<div style="width:1px;background:#2d3148"></div>');
   }
@@ -290,13 +291,28 @@ function renderActiveAlerts() {
   container.replaceChildren();
   if (!activeHealthAlerts.length) container.textContent = 'No active alerts.';
   activeHealthAlerts.forEach(alert => {
-    const item = document.createElement('p');
+    const item = document.createElement('article');
+    item.className = 'active-alert-item';
+    const heading = document.createElement('h3');
+    heading.textContent = alert.group_id ? `${alert.cluster_name} / ${alert.group_id} / ${alert.topic}` : alert.cluster_name;
+    item.appendChild(heading);
+    const reasons = document.createElement('ul');
+    (alert.reasons || [alert.message]).forEach(reason => {
+      const line = document.createElement('li');
+      line.textContent = reason;
+      reasons.appendChild(line);
+    });
+    item.appendChild(reasons);
     const details = [];
-    if (alert.lag != null) details.push(`Lag: ${alert.lag}`);
+    if (alert.lag != null && alert.lag >= 0) details.push(`Lag: ${alert.lag}`);
     if (alert.group_state) details.push(`Group state: ${alert.group_state}`);
     if (alert.error) details.push(`Error: ${alert.error}`);
     if (alert.last_successful_collection) details.push(`Last successful collection: ${alert.last_successful_collection}`);
-    item.textContent = `${alert.message}${details.length ? ' ? ' + details.join('; ') : ''}`;
+    if (details.length) {
+      const metadata = document.createElement('p');
+      metadata.textContent = details.join('; ');
+      item.appendChild(metadata);
+    }
     container.appendChild(item);
   });
 }

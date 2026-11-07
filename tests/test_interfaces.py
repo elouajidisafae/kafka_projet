@@ -179,3 +179,18 @@ def test_no_data_omits_global_and_cluster_score_metrics(monkeypatch):
     lines = client.get("/metrics").text.splitlines()
     assert not any(line.startswith(("khm_health_score ", "khm_health_score{")) for line in lines)
     assert 'khm_health_unreachable_clusters 1' in lines
+
+
+
+def test_insufficient_forecast_response_retains_pair_identity_without_changing_fitter(tmp_path, monkeypatch):
+    from core import forecasting as fc
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "forecast-names.db")
+    monkeypatch.setattr(fc, "_cache", None)
+    db.init_db()
+    db.save_lag("demo", "new-group", "orders", 10, "OK")
+    response = TestClient(web.app).get("/api/forecast")
+    forecast = response.json()["forecasts"][0]
+    assert forecast["enough_data"] is False
+    assert (forecast["cluster_name"], forecast["group_id"], forecast["topic"]) == ("demo", "new-group", "orders")
+    cached = fc.forecasts_for_request()[("demo", "new-group", "orders")]
+    assert "cluster_name" not in cached  # Presentation enrichment leaves model outputs unchanged.
