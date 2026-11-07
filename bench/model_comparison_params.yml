@@ -1,0 +1,10 @@
+dataset: baseline-20261001T111043363413Z
+heldout_sampling: all canonical origins; unchanged
+selection_sampling:
+  anchor: generator repetition start timestamp
+  interval_seconds: 60
+  origin_timestamp: forecast recorded_at
+  rule: earliest canonical forecast origin per half-open interval of each repetition
+  tie_break: earliest recorded_at, then numeric forecast ID
+selection_split: wave_1
+status: pending_selection
