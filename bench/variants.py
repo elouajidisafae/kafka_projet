@@ -87,3 +87,14 @@ def V2(config):
 def V3(config):
     settings=config["forecast"]
     return Variant(config, "V3", settings["short_window_minutes"], settings["agreement_tolerance"])
+
+
+# Explicit offline adapters, also usable through replay.load_forecaster's plugin API.
+def Holt(config):
+    from bench.comparison_models import Holt as factory
+    return factory(config)
+
+
+def ARIMA(config):
+    from bench.comparison_models import ARIMA as factory
+    return factory(config)
