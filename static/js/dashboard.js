@@ -245,12 +245,12 @@ async function refreshHealthScore() {
   const res  = await fetch('/api/health-score');
   const json = await res.json();
 
-  if (!json || json.score === null) return;
+  if (!json) return;
 
   const score = json.score;
   const color = json.color || '#22c55e';
 
-  document.getElementById('score-value').textContent = score;
+  document.getElementById('score-value').textContent = score == null ? 'No data' : score;
   document.getElementById('score-value').style.color = color;
   document.getElementById('score-grade').textContent = json.grade || '?';
   document.getElementById('score-grade').style.color = color;
@@ -264,7 +264,7 @@ async function refreshHealthScore() {
   if (document.getElementById('active-alert-dialog').open) renderActiveAlerts();
 
   const circumference = 188.5;
-  const offset = circumference - (score / 100) * circumference;
+  const offset = circumference - ((score ?? 0) / 100) * circumference;
   const ring = document.getElementById('score-ring');
   if (ring) {
     ring.style.stroke = color;
@@ -276,7 +276,7 @@ async function refreshHealthScore() {
   if (clusterDiv && json.by_cluster) {
     clusterDiv.innerHTML = json.by_cluster.map(c => `
       <div style="text-align:center;min-width:80px">
-        <div style="font-size:1.4rem;font-weight:700;color:${c.color}">${c.score} ? ${c.grade}</div>
+        <div style="font-size:1.4rem;font-weight:700;color:${c.color}">${c.score == null ? 'No data' : c.score} ? ${c.grade}</div>
         <div style="font-size:.7rem;color:#64748b;text-transform:uppercase;
                     letter-spacing:.5px">${c.cluster_name}</div>
         <div style="font-size:.7rem;color:#475569">Performance: ${c.performance.critical} critical, ${c.performance.warning} warning<br>Availability: ${c.availability.stopped_pairs} stopped, ${c.availability.waiting_messages} messages<br>Monitoring: ${c.monitoring.unreachable_clusters} unreachable, ${c.monitoring.error_pairs} errors, ${c.monitoring.unknown_pairs} unknown</div>

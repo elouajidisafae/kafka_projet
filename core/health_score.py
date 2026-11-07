@@ -19,7 +19,7 @@ def _components(results):
     empty = sum(str(getattr(r, "group_state", "")).upper() in {"EMPTY", "DEAD"} for r in results)
     penalties = (60 * critical / total, 25 * warning / total,
                  15 * empty / total) if total else (0, 0, 0)
-    score = max(0, min(100, round(100 * (1 - sum(penalties) / 75))))
+    score = max(0, min(100, round(100 * (1 - sum(penalties) / 75)))) if total else None
     return critical, warning, empty, penalties, score
 
 
@@ -27,8 +27,9 @@ def _compute_single_score(results: list) -> int:
     return _components(results)[-1]
 
 
-def _grade(score: int) -> tuple[str, str]:
+def _grade(score: int | None) -> tuple[str, str]:
     """Retourne le grade et la couleur associés au score."""
+    if score is None: return "No data", "#64748b"
     if score >= 90: return "Excellent", "#22c55e"
     if score >= 70: return "Good",       "#4ade80"
     if score >= 50: return "Degraded",     "#facc15"
@@ -82,9 +83,9 @@ def _apply_label(summary, results, cluster_status):
     band, _ = _grade(summary["score"])
     labels = ["Critical", "Poor", "Degraded", "Good", "Excellent"]
     ceiling = "Critical" if worst == 2 else "Degraded" if worst == 1 else None
-    final = labels[min(labels.index(band), labels.index(ceiling))] if ceiling else band
+    final = ceiling if band == "No data" and ceiling else labels[min(labels.index(band), labels.index(ceiling))] if ceiling else band
     colors = ["#f87171", "#fb923c", "#facc15", "#4ade80", "#22c55e"]
-    summary.update(score_band=band, grade=final, color=colors[labels.index(final)],
+    summary.update(score_band=band, grade=final, color=colors[labels.index(final)] if final in labels else "#64748b",
                    ceiling=ceiling, worst_state=worst,
                    ceiling_reasons=[a["message"] for a in alerts if a["severity"] == worst],
                    active_alerts=alerts, active_alert_count=len(alerts))

@@ -28,7 +28,8 @@ def test_all_ok_and_no_data():
     assert compute_health_score([row("OK")])["score"] == 100
     empty = compute_health_score([])
     assert empty["total_groups"] == 0 and empty["by_cluster"] == []
-    assert empty["grade"] == empty["score_band"] == "Excellent"
+    assert empty["grade"] == empty["score_band"] == "No data"
+    assert empty["score"] is None
 
 
 def test_requested_intermediate_scores():
@@ -105,3 +106,17 @@ def test_ceiling_never_improves_a_worse_score_band():
     result = compute_health_score([r])
     assert result["score_band"] == result["grade"] == "Poor"
     assert result["ceiling"] == "Degraded"
+
+
+
+def test_all_clusters_unreachable_have_no_numeric_score():
+    result = compute_health_score([], {"a": {"reachable": False}, "b": {"reachable": False}})
+    assert result["score"] is None and result["grade"] == "Degraded"
+    assert result["monitoring"]["unreachable_clusters"] == 2
+    assert all(c["score"] is None and c["grade"] == "Degraded" for c in result["by_cluster"])
+
+
+@pytest.mark.parametrize("status", ["ERROR", "UNKNOWN"])
+def test_all_unmeasured_pairs_have_no_score(status):
+    result = compute_health_score([row(status)])
+    assert result["score"] is None and result["grade"] == "Degraded"

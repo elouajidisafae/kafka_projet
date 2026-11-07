@@ -167,3 +167,15 @@ def test_health_metrics_and_active_alert_dialog(monkeypatch):
     assert 'khm_health_score{cluster="demo"} 0' in output
     page = client.get("/").text
     assert 'id="active-alert-total"' in page and 'id="active-alert-dialog"' in page
+
+
+
+def test_no_data_omits_global_and_cluster_score_metrics(monkeypatch):
+    from core.health_score import compute_health_score
+    monkeypatch.setattr(web, "_last_health_score", compute_health_score([], {"offline": {"reachable": False}}))
+    monkeypatch.setattr(web, "_current_rows", [])
+    client = TestClient(web.app)
+    assert client.get("/api/health-score").json()["score"] is None
+    lines = client.get("/metrics").text.splitlines()
+    assert not any(line.startswith(("khm_health_score ", "khm_health_score{")) for line in lines)
+    assert 'khm_health_unreachable_clusters 1' in lines

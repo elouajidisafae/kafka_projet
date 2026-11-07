@@ -305,7 +305,7 @@ def metrics():
     lines.extend(prometheus_lines())
     lines.append("# HELP khm_health_score Normalised health score; absent before first collection")
     lines.append("# TYPE khm_health_score gauge")
-    if _last_health_score:
+    if _last_health_score.get("score") is not None:
         lines.append(f'khm_health_score {_last_health_score["score"]}')
     gauges = {
         "khm_health_worst_state": (None, "worst_state"),
@@ -322,7 +322,7 @@ def metrics():
     if _last_health_score:
         for summary in [_last_health_score] + _last_health_score.get("by_cluster", []):
             suffix = '{cluster=' + json.dumps(summary["cluster_name"]) + '}' if "cluster_name" in summary else ""
-            if suffix:
+            if suffix and summary.get("score") is not None:
                 lines.append(f'khm_health_score{suffix} {summary["score"]}')
             for metric, (section, field) in gauges.items():
                 value = summary.get(section, {}).get(field, 0) if section else summary.get(field, 0)
