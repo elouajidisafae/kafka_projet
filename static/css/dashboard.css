@@ -565,3 +565,12 @@ html.light .nav-link.active {
   .health-main { gap: 14px; }
   .cluster-scores { align-items: flex-start; }
 }
+
+/* Always-visible summary panels also act as accessible table filters. */
+.cards .card { color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.cards .card .label, .cards .card .value { display: block; }
+.cards .card:hover { border-color: var(--primary); }
+.cards .card.active-filter { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.cards .card:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.card.stopped .value { color: #fb923c; }
+.card.monitoring .value { color: var(--primary); }

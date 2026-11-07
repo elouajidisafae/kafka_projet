@@ -1,3 +1,55 @@
+let statusRows = [];
+let clusterStates = {};
+let activePanel = 'all';
+let statusRequest = 0;
+
+const freshPair = row => !row.stale && clusterStates[row.cluster_name]?.reachable !== false;
+const stoppedPair = row => freshPair(row) && !['ERROR', 'UNKNOWN'].includes(row.status)
+  && ['EMPTY', 'DEAD'].includes(String(row.group_state).toUpperCase()) && row.total_lag > 0;
+
+function matchesPanel(row, panel) {
+  if (panel === 'critical') return freshPair(row) && row.status === 'CRITICAL';
+  if (panel === 'warning') return freshPair(row) && row.status === 'WARNING';
+  if (panel === 'stopped') return stoppedPair(row);
+  if (panel === 'monitoring') return row.stale || clusterStates[row.cluster_name]?.reachable === false
+    || ['ERROR', 'UNKNOWN'].includes(row.status);
+  return true;
+}
+
+function selectPanel(panel) {
+  activePanel = panel === 'all' || activePanel === panel ? 'all' : panel;
+  renderStatusTable();
+}
+
+function renderStatusTable() {
+  document.querySelectorAll('.card[data-filter]').forEach(panel => {
+    const selected = panel.dataset.filter === activePanel;
+    panel.classList.toggle('active-filter', selected);
+    panel.setAttribute('aria-pressed', String(selected));
+  });
+  const rows = statusRows.filter(row => matchesPanel(row, activePanel));
+  document.getElementById('tbody').innerHTML = rows.map(r => `
+    <tr onclick="loadChart('${r.cluster_name}','${r.group_id}','${r.topic}')">
+      <td><span class="cluster-pill">${r.cluster_name}</span></td>
+      <td><strong>${r.group_id}</strong></td><td>${r.topic}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${r.status === 'UNKNOWN' ? 'N/A' : fmt(r.total_lag)}${r.stale ? ' (STALE)' : ''}</td>
+      <td>${r.partitions_without_commit ?? 'N/A'}</td><td>${badge(r.status)}</td>
+      <td>${stateBadge(r.group_state || 'Unknown')}</td>
+      <td style="color:var(--text-muted);font-size:.75rem">${r.recorded_at?.slice(0,19).replace('T',' ') || 'N/A'}</td>
+    </tr>`).join('') || '<tr><td colspan="8" class="placeholder-text">No pairs match this filter.</td></tr>';
+}
+
+function updatePanelValues() {
+  document.getElementById('c-total').textContent = statusRows.length;
+  document.getElementById('c-crit').textContent = statusRows.filter(row => matchesPanel(row, 'critical')).length;
+  document.getElementById('c-warn').textContent = statusRows.filter(row => matchesPanel(row, 'warning')).length;
+  document.getElementById('c-stopped').textContent = statusRows.filter(stoppedPair).length;
+  const unreachable = Object.entries(clusterStates).filter(([name, state]) => state.reachable === false && (!activeCluster || name === activeCluster)).length;
+  const failedPairs = statusRows.filter(row => freshPair(row) && ['ERROR', 'UNKNOWN'].includes(row.status)).length;
+  document.getElementById('c-monitoring').textContent = unreachable + failedPairs;
+  renderStatusTable();
+}
+
 const counted = (n, singular, plural = `${singular}s`) => `${n} ${n === 1 ? singular : plural}`;
 let chart = null;
 let forecastChart = null;
@@ -87,12 +139,15 @@ function selectCluster(name) {
 // ── Status refresh ────────────────────────────────────────────────────────────
 
 async function refresh() {
+  const request = ++statusRequest;
   const url = activeCluster
-    ? `/api/status?cluster=${activeCluster}`
+    ? `/api/status?cluster=${encodeURIComponent(activeCluster)}`
     : '/api/status';
   const res  = await fetch(url);
   const json = await res.json();
-  const rows = json.data || [];
+  if (request !== statusRequest) return;
+  statusRows = json.data || [];
+  clusterStates = json.cluster_status || {};
 
   if (json.thresholds) {
     THRESHOLDS.warning = json.thresholds.warning;
@@ -109,25 +164,7 @@ async function refresh() {
     clusterStatus.appendChild(notice);
   });
 
-  document.getElementById('c-total').textContent = rows.length;
-  document.getElementById('c-ok').textContent    = rows.filter(r => r.status === 'OK').length;
-  document.getElementById('c-warn').textContent  = rows.filter(r => r.status === 'WARNING').length;
-  document.getElementById('c-crit').textContent  = rows.filter(r => r.status === 'CRITICAL').length;
-
-    document.getElementById('tbody').innerHTML = rows.map(r => `
-        <tr onclick="loadChart('${r.cluster_name}','${r.group_id}','${r.topic}')">
-        <td><span class="cluster-pill">${r.cluster_name}</span></td>
-        <td><strong>${r.group_id}</strong></td>
-        <td>${r.topic}</td>
-        <td style="text-align:right;font-variant-numeric:tabular-nums">${r.status === "UNKNOWN" ? "N/A" : fmt(r.total_lag)}${r.stale ? " (STALE)" : ""}</td>
-        <td>${r.partitions_without_commit ?? "N/A"}</td>
-        <td>${badge(r.status)}</td>
-        <td>${stateBadge(r.group_state || 'Unknown')}</td>
-        <td style="color:#475569;font-size:.75rem">
-            ${r.recorded_at?.slice(0,19).replace('T',' ') || '—'}
-        </td>
-        </tr>
-    `).join('');
+  updatePanelValues();
 
   document.getElementById('last-update').innerHTML =
     '<span id="refresh-dot"></span>Updated: '

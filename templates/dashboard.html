@@ -56,11 +56,12 @@
       <div id="cluster-scores" class="cluster-scores"></div>
     </div>
 
-  <div class="cards">
-    <div class="card total"><div class="label">Monitored groups</div><div class="value" id="c-total">—</div></div>
-    <div class="card ok">  <div class="label">OK</div>            <div class="value" id="c-ok">—</div></div>
-    <div class="card warn"><div class="label">Warning</div>       <div class="value" id="c-warn">—</div></div>
-    <div class="card crit"><div class="label">Critical</div>      <div class="value" id="c-crit">—</div></div>
+  <div class="cards" aria-label="Filter monitored pairs">
+    <button type="button" class="card total active-filter" data-filter="all" aria-pressed="true" onclick="selectPanel('all')"><span class="label">Pairs monitored</span><span class="value" id="c-total">0</span></button>
+    <button type="button" class="card crit" data-filter="critical" aria-pressed="false" onclick="selectPanel('critical')"><span class="label">Critical</span><span class="value" id="c-crit">0</span></button>
+    <button type="button" class="card warn" data-filter="warning" aria-pressed="false" onclick="selectPanel('warning')"><span class="label">Warning</span><span class="value" id="c-warn">0</span></button>
+    <button type="button" class="card stopped" data-filter="stopped" aria-pressed="false" onclick="selectPanel('stopped')"><span class="label">Stopped</span><span class="value" id="c-stopped">0</span></button>
+    <button type="button" class="card monitoring" data-filter="monitoring" aria-pressed="false" onclick="selectPanel('monitoring')"><span class="label">Monitoring problems</span><span class="value" id="c-monitoring">0</span></button>
   </div>
 
   <div class="table-wrap">
@@ -77,7 +78,7 @@
           <th>Latest measurement</th>
         </tr>
       </thead>
-      <tbody id="tbody"></tbody>
+      <tbody id="tbody" aria-live="polite"></tbody>
     </table>
   </div>
 
