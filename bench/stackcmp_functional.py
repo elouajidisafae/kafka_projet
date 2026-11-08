@@ -20,7 +20,7 @@ class Member:
 
     def run(self):
         from confluent_kafka import Consumer,TopicPartition
-        consumer=Consumer({"bootstrap.servers":"localhost:39092","group.id":self.topic,
+        consumer=Consumer({"bootstrap.servers":"127.0.0.1:39092","group.id":self.topic,
                            "enable.auto.commit":False,"enable.auto.offset.store":False,"auto.offset.reset":"earliest"})
         def assign(c,parts):
             for part in parts: part.offset=0
@@ -74,7 +74,7 @@ def observe(output,scenario,group,seconds):
 def create_scenario_topics(topics):
     from confluent_kafka.admin import AdminClient, NewTopic
     # Futures do not keep the AdminClient alive; retain it until every result resolves.
-    admin = AdminClient({"bootstrap.servers": "localhost:39092"})
+    admin = AdminClient({"bootstrap.servers": "127.0.0.1:39092"})
     futures = admin.create_topics([NewTopic(topic, 3, 1) for topic in topics])
     for future in futures.values():
         future.result(30)
@@ -104,7 +104,7 @@ def run():
         start_monitors(env,["khm","exporter","prometheus"])
         wait_for(lambda:len(get_json("http://127.0.0.1:38080/api/status")["data"])==2)
         wait_for(lambda:len(query("stackcmp:lag"))==2)
-        producer=Producer({"bootstrap.servers":"localhost:39092"})
+        producer=Producer({"bootstrap.servers":"127.0.0.1:39092"})
         def produce(topic,count):
             for index in range(count): producer.produce(topic,partition=index%3,value=b"stackcmp")
             if producer.flush(20): raise RuntimeError("Undelivered scenario messages")

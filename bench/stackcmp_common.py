@@ -72,7 +72,7 @@ def environment(output,directory,groups=(),topics=()):
     template["include_groups"]=list(groups)
     if topics:
         from confluent_kafka.admin import AdminClient
-        existing=AdminClient({"bootstrap.servers":"localhost:39092"}).list_topics(timeout=20).topics
+        existing=AdminClient({"bootstrap.servers":"127.0.0.1:39092"}).list_topics(timeout=20).topics
         template["exclude_topics"]=[t for t in existing if t not in topics]
     (cfg/"khm.yml").write_text(yaml.safe_dump(template),encoding="utf-8")
     (cfg/"prometheus.yml").write_bytes((CONFIG/"prometheus.yml").read_bytes())
@@ -161,29 +161,40 @@ def effort(setup):
                 definition="Hand-authored deployable source files, including the ENTIRE shared compose file for every setup; runtime generated substitutions, build recipes and runner code excluded. Formatting-dependent count, not time/complexity.")
 
 
+def check_committed_partitions(group, partitions):
+    errors = [f"partition {part.partition}: code={part.error.code()} {part.error}"
+              for part in partitions if part.error is not None and part.error.code() != 0]
+    if errors:
+        raise RuntimeError(f"Offset seed failure for {group}: " + "; ".join(errors))
+
+
 def seed_pairs(size,prefix):
     # Identical paper_scalability workload: one 3-partition topic, 300 messages,
     # size inactive groups committed at zero on every partition. Only the port differs.
     from confluent_kafka import Consumer,Producer,TopicPartition
     from confluent_kafka.admin import AdminClient,NewTopic
-    admin=AdminClient({"bootstrap.servers":"localhost:39092"});topic=prefix+"-topic"
+    admin=AdminClient({"bootstrap.servers":"127.0.0.1:39092"});topic=prefix+"-topic"
     for future in admin.create_topics([NewTopic(topic,3,1)]).values(): future.result(30)
-    producer=Producer({"bootstrap.servers":"localhost:39092"})
+    producer=Producer({"bootstrap.servers":"127.0.0.1:39092"})
     for index in range(300): producer.produce(topic,partition=index%3,value=b"paper")
     if producer.flush(30): raise RuntimeError("Undelivered workload messages")
     groups=[prefix+f"-g{i:03}" for i in range(size)]
     for group in groups:
-        consumer=Consumer({"bootstrap.servers":"localhost:39092","group.id":group,"enable.auto.commit":False})
+        consumer=Consumer({"bootstrap.servers":"127.0.0.1:39092","group.id":group,"enable.auto.commit":False})
         try:
             consumer.assign([TopicPartition(topic,p,0) for p in range(3)])
             response=consumer.commit(offsets=[TopicPartition(topic,p,0) for p in range(3)],asynchronous=False)
-            if any(p.error for p in response): raise RuntimeError("Offset seed failure")
+            check_committed_partitions(group, response)
+            actual = consumer.committed([TopicPartition(topic,p) for p in range(3)], timeout=10)
+            check_committed_partitions(group, actual)
+            if len(actual) != 3 or any(part.offset != 0 for part in actual):
+                raise RuntimeError(f"Offset seed readback mismatch for {group}: {actual}")
         finally: consumer.close()
     return groups,[topic]
 
 
 def cleanup(groups,topics):
     from confluent_kafka.admin import AdminClient
-    admin=AdminClient({"bootstrap.servers":"localhost:39092"})
+    admin=AdminClient({"bootstrap.servers":"127.0.0.1:39092"})
     for action,names in [(admin.delete_consumer_groups,groups),(admin.delete_topics,topics)]:
         for future in action(names).values(): future.result(30)

@@ -45,3 +45,22 @@ def test_named_retry_preserves_old_results_and_selects_matching_prepare(tmp_path
     with pytest.raises(FileExistsError): common.phase("functional")
     monkeypatch.setenv("STACKCMP_ATTEMPT","../escape")
     with pytest.raises(ValueError): common.phase("resources")
+
+
+
+def test_host_broker_advertises_ipv4_explicitly():
+    cfg=yaml.safe_load(Path("docker-compose.stackcmp.yml").read_text())
+    assert "EXTERNAL://127.0.0.1:39092" in cfg["services"]["kafka"]["environment"]["KAFKA_ADVERTISED_LISTENERS"]
+
+
+def test_offset_seed_error_checks_code_not_error_object_truthiness():
+    import pytest
+    from types import SimpleNamespace as NS
+    from bench.stackcmp_common import check_committed_partitions
+    class Error:
+        def __init__(self,code): self.value=code
+        def code(self): return self.value
+        def __str__(self): return "test broker error"
+    check_committed_partitions("g",[NS(partition=0,error=None),NS(partition=1,error=Error(0))])
+    with pytest.raises(RuntimeError,match="g: partition 2: code=-197"):
+        check_committed_partitions("g",[NS(partition=2,error=Error(-197))])
