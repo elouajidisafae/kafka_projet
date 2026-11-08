@@ -1,0 +1,22 @@
+clusters:
+  - name: stackcmp
+    bootstrap_servers: kafka:29092
+alerts:
+  warning_threshold: 1000
+  critical_threshold: 10000
+monitor:
+  refresh_interval: 5
+  group_topic_match: false
+forecast:
+  method: baseline
+  window_hours: 1
+  persist_every_cycle: true
+  trend_deadband_msgs_per_sec: 0.05
+recommendations:
+  confidence_gate: [HIGH, MEDIUM]
+  rebalance_cycles_threshold: 3
+retention:
+  days: 7
+web:
+  host: 0.0.0.0
+  port: 8080

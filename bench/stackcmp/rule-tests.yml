@@ -1,0 +1,120 @@
+rule_files:
+- alerts.yml
+evaluation_interval: 5s
+tests:
+- name: rising
+  interval: 5s
+  input_series:
+  - series: kafka_consumergroup_lag{cluster="stackcmp",consumergroup="g",topic="orders",partition="0"}
+    values: 0+10x12
+  - series: kafka_consumergroup_current_offset{cluster="stackcmp",consumergroup="g",topic="orders",partition="0"}
+    values: 0+0x12
+  - series: kafka_consumergroup_lag{cluster="stackcmp",consumergroup="g",topic="orders",partition="1"}
+    values: 0+10x12
+  - series: kafka_consumergroup_current_offset{cluster="stackcmp",consumergroup="g",topic="orders",partition="1"}
+    values: 0+0x12
+  - series: kafka_consumergroup_lag{cluster="stackcmp",consumergroup="g",topic="orders",partition="2"}
+    values: 0+10x12
+  - series: kafka_consumergroup_current_offset{cluster="stackcmp",consumergroup="g",topic="orders",partition="2"}
+    values: 0+0x12
+  - series: kafka_consumergroup_members{cluster="stackcmp",consumergroup="g"}
+    values: 1+0x12
+  - series: kafka_topic_partitions{cluster="stackcmp",topic="orders"}
+    values: 3+0x12
+  alert_rule_test:
+  - eval_time: 1m
+    alertname: ProjectedCritical
+    exp_alerts:
+    - exp_labels:
+        cluster: stackcmp
+        consumergroup: g
+        topic: orders
+        severity: warning
+  - eval_time: 1m
+    alertname: ScaleConsumerGroup
+    exp_alerts:
+    - exp_labels:
+        cluster: stackcmp
+        consumergroup: g
+        topic: orders
+        severity: warning
+  - eval_time: 1m
+    alertname: StrandedMessages
+    exp_alerts: []
+  - eval_time: 1m
+    alertname: StalledProcessing
+    exp_alerts: []
+- name: stranded
+  interval: 5s
+  input_series:
+  - series: kafka_consumergroup_lag{cluster="stackcmp",consumergroup="g",topic="orders",partition="0"}
+    values: 4000+0x12
+  - series: kafka_consumergroup_current_offset{cluster="stackcmp",consumergroup="g",topic="orders",partition="0"}
+    values: 0+0x12
+  - series: kafka_consumergroup_lag{cluster="stackcmp",consumergroup="g",topic="orders",partition="1"}
+    values: 4000+0x12
+  - series: kafka_consumergroup_current_offset{cluster="stackcmp",consumergroup="g",topic="orders",partition="1"}
+    values: 0+0x12
+  - series: kafka_consumergroup_lag{cluster="stackcmp",consumergroup="g",topic="orders",partition="2"}
+    values: 4000+0x12
+  - series: kafka_consumergroup_current_offset{cluster="stackcmp",consumergroup="g",topic="orders",partition="2"}
+    values: 0+0x12
+  - series: kafka_consumergroup_members{cluster="stackcmp",consumergroup="g"}
+    values: 0+0x12
+  - series: kafka_topic_partitions{cluster="stackcmp",topic="orders"}
+    values: 3+0x12
+  alert_rule_test:
+  - eval_time: 1m
+    alertname: ProjectedCritical
+    exp_alerts: []
+  - eval_time: 1m
+    alertname: ScaleConsumerGroup
+    exp_alerts: []
+  - eval_time: 1m
+    alertname: StrandedMessages
+    exp_alerts:
+    - exp_labels:
+        cluster: stackcmp
+        consumergroup: g
+        topic: orders
+        severity: critical
+  - eval_time: 1m
+    alertname: StalledProcessing
+    exp_alerts: []
+- name: stalled
+  interval: 5s
+  input_series:
+  - series: kafka_consumergroup_lag{cluster="stackcmp",consumergroup="g",topic="orders",partition="0"}
+    values: 4000+0x12
+  - series: kafka_consumergroup_current_offset{cluster="stackcmp",consumergroup="g",topic="orders",partition="0"}
+    values: 0+0x12
+  - series: kafka_consumergroup_lag{cluster="stackcmp",consumergroup="g",topic="orders",partition="1"}
+    values: 4000+0x12
+  - series: kafka_consumergroup_current_offset{cluster="stackcmp",consumergroup="g",topic="orders",partition="1"}
+    values: 0+0x12
+  - series: kafka_consumergroup_lag{cluster="stackcmp",consumergroup="g",topic="orders",partition="2"}
+    values: 4000+0x12
+  - series: kafka_consumergroup_current_offset{cluster="stackcmp",consumergroup="g",topic="orders",partition="2"}
+    values: 0+0x12
+  - series: kafka_consumergroup_members{cluster="stackcmp",consumergroup="g"}
+    values: 1+0x12
+  - series: kafka_topic_partitions{cluster="stackcmp",topic="orders"}
+    values: 3+0x12
+  alert_rule_test:
+  - eval_time: 1m
+    alertname: ProjectedCritical
+    exp_alerts: []
+  - eval_time: 1m
+    alertname: ScaleConsumerGroup
+    exp_alerts: []
+  - eval_time: 1m
+    alertname: StrandedMessages
+    exp_alerts: []
+  - eval_time: 1m
+    alertname: StalledProcessing
+    exp_alerts:
+    - exp_labels:
+        cluster: stackcmp
+        consumergroup: g
+        topic: orders
+        severity: critical

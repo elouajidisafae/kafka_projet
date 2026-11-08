@@ -1,0 +1,83 @@
+name: khm-stackcmp
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    ports:
+    - 127.0.0.1:39092:39092
+    environment:
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:39093
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:39092,CONTROLLER://0.0.0.0:39093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:39092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_HEAP_OPTS: -Xms512m -Xmx1g
+    volumes:
+    - ${STACKCMP_BROKER_DIR:?}:/var/lib/kafka/data
+    healthcheck:
+      test:
+      - CMD
+      - kafka-topics
+      - --bootstrap-server
+      - kafka:29092
+      - --list
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  khm:
+    image: ${STACKCMP_KHM_IMAGE:?}
+    ports:
+    - 127.0.0.1:38080:8080
+    environment:
+      KHM_DB_PATH: /app/data/lag_history.db
+      PYTHONUNBUFFERED: '1'
+    volumes:
+    - ${STACKCMP_CONFIG_DIR:?}/khm.yml:/app/config.yml:ro
+    - ${STACKCMP_STATE_DIR:?}/khm:/app/data
+  exporter:
+    image: danielqsj/kafka-exporter:v1.9.0
+    ports:
+    - 127.0.0.1:39308:9308
+    command:
+    - --kafka.server=kafka:29092
+    - --kafka.version=2.0.0
+    - --offset.show-all
+    - --refresh.metadata=5s
+    - --group.filter=${STACKCMP_GROUP_REGEX:-.*}
+    - --topic.filter=${STACKCMP_TOPIC_REGEX:-.*}
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    ports:
+    - 127.0.0.1:39090:9090
+    command:
+    - --config.file=/etc/prometheus/prometheus.yml
+    - --storage.tsdb.path=/prometheus
+    - --storage.tsdb.retention.time=7d
+    volumes:
+    - ${STACKCMP_CONFIG_DIR:?}/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    - ./bench/stackcmp/alerts.yml:/etc/prometheus/alerts.yml:ro
+    - ${STACKCMP_STATE_DIR:?}/prometheus:/prometheus
+  grafana:
+    image: grafana/grafana:12.1.0
+    profiles:
+    - grafana
+    ports:
+    - 127.0.0.1:33000:3000
+    environment:
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+    - ./bench/stackcmp/datasource.yml:/etc/grafana/provisioning/datasources/prometheus.yml:ro
+    - ./bench/stackcmp/dashboard-provider.yml:/etc/grafana/provisioning/dashboards/lag.yml:ro
+    - ./bench/stackcmp/lag-dashboard.json:/var/lib/grafana/dashboards/lag.json:ro
+    - ${STACKCMP_STATE_DIR:?}/grafana:/var/lib/grafana
