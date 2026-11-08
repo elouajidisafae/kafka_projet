@@ -1,5 +1,12 @@
+ARIMA:
+  p: 2
+  q: 2
+Holt:
+  alpha: 0.2
+  beta: 0.2
 dataset: baseline-20261001T111043363413Z
 heldout_sampling: all canonical origins; unchanged
+selection_report_sha256: 533b56e1b36b3994c5cb177d6a33b32c8ea0b6b3b51e8dc058c37b87a68f89b2
 selection_sampling:
   anchor: generator repetition start timestamp
   interval_seconds: 60
@@ -7,4 +14,11 @@ selection_sampling:
   rule: earliest canonical forecast origin per half-open interval of each repetition
   tie_break: earliest recorded_at, then numeric forecast ID
 selection_split: wave_1
-status: pending_selection
+source_hashes:
+  bench/comparison_models.py: a13a39e13b8d237ea6dddf49e5353c60266e2f40115d2560d253a2858d051bf8
+  bench/forecast_eval.py: 311ad28ed47e764076d87137662b1faae911981528b7eeec4496d50c721d153d
+  bench/model_comparison.py: 71474ad66850a7a65702231d6d7af53fd278501fcfa3f7f26d0c88b287eef885
+  bench/replay.py: 09b57825b3e6c15ceda56b3d34fca3e142595ac02fd0087c45224f0c9faf6eda
+  bench/variants.py: 611850f6f3808bd9280e049fe330df17a5f423b9f99c8b28ff5f25467ac56b69
+  core/forecasting.py: e1d013879c849803f4433146385d51a2f6eac6b06c713176648283e1d4b5a024
+status: selected
