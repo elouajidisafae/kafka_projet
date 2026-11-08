@@ -74,10 +74,14 @@ services:
     environment:
       GF_ANALYTICS_REPORTING_ENABLED: 'false'
       GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      GF_PLUGINS_PREINSTALL_DISABLED: 'true'
       GF_AUTH_ANONYMOUS_ENABLED: 'true'
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
     volumes:
     - ./bench/stackcmp/datasource.yml:/etc/grafana/provisioning/datasources/prometheus.yml:ro
     - ./bench/stackcmp/dashboard-provider.yml:/etc/grafana/provisioning/dashboards/lag.yml:ro
     - ./bench/stackcmp/lag-dashboard.json:/var/lib/grafana/dashboards/lag.json:ro
-    - ${STACKCMP_STATE_DIR:?}/grafana:/var/lib/grafana
+    - grafana-state:/var/lib/grafana
+volumes:
+  grafana-state:
+    name: ${STACKCMP_GRAFANA_VOLUME:?}

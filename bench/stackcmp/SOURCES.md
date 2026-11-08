@@ -24,3 +24,7 @@ Stuck rebalance: not implementable from these stock metrics; no fake state alert
 These limits do not apply to every possible Prometheus deployment with custom collectors.
 
 The chosen exporter version has [100 group workers by default](https://github.com/danielqsj/kafka_exporter/blob/v1.10.0/kafka_exporter.go#L886-L890). This is why the final measurement pin uses v1.10.0 rather than the initially reviewed v1.9.0; no performance advantage is assumed without measurement.
+
+Grafana state uses a Docker-managed volume mounted at /var/lib/grafana, following the documented Docker volume setup: https://grafana.com/docs/grafana/latest/setup-grafana/installation/docker/ . Each benchmark case uses a distinct volume; failed attempts are retained. The Windows bind-mounted database in smoke-retry3 failed with "database is locked" (observed container log), so that attempt supplies no resource measurements.
+
+Optional automatic plugin preinstallation is disabled to keep the pinned image reproducible: [Grafana v12.1.0 defaults.ini, lines 1683-1690](https://github.com/grafana/grafana/blob/v12.1.0/conf/defaults.ini#L1683-L1690). The supplied lag dashboard uses built-in panels.

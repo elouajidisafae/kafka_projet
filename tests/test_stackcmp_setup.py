@@ -53,6 +53,18 @@ def test_host_broker_advertises_ipv4_explicitly():
     assert "EXTERNAL://127.0.0.1:39092" in cfg["services"]["kafka"]["environment"]["KAFKA_ADVERTISED_LISTENERS"]
 
 
+def test_grafana_database_volume_is_isolated_per_case(tmp_path,monkeypatch):
+    from bench import stackcmp_common as common
+    monkeypatch.setattr(common,"commit",lambda:"test")
+    cfg=yaml.safe_load(Path("docker-compose.stackcmp.yml").read_text())
+    assert "grafana-state:/var/lib/grafana" in cfg["services"]["grafana"]["volumes"]
+    assert cfg["services"]["grafana"]["environment"]["GF_PLUGINS_PREINSTALL_DISABLED"]=="true"
+    assert cfg["volumes"]["grafana-state"]["name"]=="${STACKCMP_GRAFANA_VOLUME:?}"
+    a=common.environment(tmp_path,tmp_path/"a")["STACKCMP_GRAFANA_VOLUME"]
+    assert a==common.environment(tmp_path,tmp_path/"a")["STACKCMP_GRAFANA_VOLUME"]
+    assert a!=common.environment(tmp_path,tmp_path/"b")["STACKCMP_GRAFANA_VOLUME"]
+
+
 def test_offset_seed_error_checks_code_not_error_object_truthiness():
     import pytest
     from types import SimpleNamespace as NS

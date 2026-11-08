@@ -1,5 +1,6 @@
 """Isolated deployment mechanics for the pinned stack comparison."""
 from collections import defaultdict
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -79,6 +80,7 @@ def environment(output,directory,groups=(),topics=()):
     return dict(os.environ,STACKCMP_KHM_IMAGE="khm-stackcmp:"+commit(),
                 STACKCMP_BROKER_DIR=str(writable(output/"broker")),
                 STACKCMP_CONFIG_DIR=str(cfg),STACKCMP_STATE_DIR=str(state),
+                  STACKCMP_GRAFANA_VOLUME="khm-stackcmp-grafana-"+hashlib.sha256(str(state.resolve()).encode()).hexdigest()[:16],
                 STACKCMP_GROUP_REGEX="^"+re.escape(os.path.commonprefix(list(groups)))+".*$" if groups else ".*",
                 STACKCMP_TOPIC_REGEX="^"+re.escape(os.path.commonprefix(list(topics)))+".*$" if topics else ".*")
 
