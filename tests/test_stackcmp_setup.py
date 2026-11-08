@@ -65,6 +65,17 @@ def test_grafana_database_volume_is_isolated_per_case(tmp_path,monkeypatch):
     assert a!=common.environment(tmp_path,tmp_path/"b")["STACKCMP_GRAFANA_VOLUME"]
 
 
+def test_kafka_volume_is_shared_across_cases_but_isolated_per_attempt(tmp_path,monkeypatch):
+    from bench import stackcmp_common as common
+    monkeypatch.setattr(common,"commit",lambda:"test")
+    cfg=yaml.safe_load(Path("docker-compose.stackcmp.yml").read_text())
+    assert "kafka-state:/var/lib/kafka/data" in cfg["services"]["kafka"]["volumes"]
+    assert cfg["volumes"]["kafka-state"]["name"]=="${STACKCMP_KAFKA_VOLUME:?}"
+    first=common.environment(tmp_path/"run1",tmp_path/"case-a")["STACKCMP_KAFKA_VOLUME"]
+    assert first==common.environment(tmp_path/"run1",tmp_path/"case-b")["STACKCMP_KAFKA_VOLUME"]
+    assert first!=common.environment(tmp_path/"run2",tmp_path/"case-a")["STACKCMP_KAFKA_VOLUME"]
+
+
 def test_offset_seed_error_checks_code_not_error_object_truthiness():
     import pytest
     from types import SimpleNamespace as NS

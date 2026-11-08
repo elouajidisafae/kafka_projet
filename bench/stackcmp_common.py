@@ -78,7 +78,7 @@ def environment(output,directory,groups=(),topics=()):
     (cfg/"khm.yml").write_text(yaml.safe_dump(template),encoding="utf-8")
     (cfg/"prometheus.yml").write_bytes((CONFIG/"prometheus.yml").read_bytes())
     return dict(os.environ,STACKCMP_KHM_IMAGE="khm-stackcmp:"+commit(),
-                STACKCMP_BROKER_DIR=str(writable(output/"broker")),
+                STACKCMP_KAFKA_VOLUME="khm-stackcmp-kafka-"+hashlib.sha256(str(output.resolve()).encode()).hexdigest()[:16],
                 STACKCMP_CONFIG_DIR=str(cfg),STACKCMP_STATE_DIR=str(state),
                   STACKCMP_GRAFANA_VOLUME="khm-stackcmp-grafana-"+hashlib.sha256(str(state.resolve()).encode()).hexdigest()[:16],
                 STACKCMP_GROUP_REGEX="^"+re.escape(os.path.commonprefix(list(groups)))+".*$" if groups else ".*",

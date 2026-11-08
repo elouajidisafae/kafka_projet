@@ -21,7 +21,7 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
       KAFKA_HEAP_OPTS: -Xms512m -Xmx1g
     volumes:
-    - ${STACKCMP_BROKER_DIR:?}:/var/lib/kafka/data
+    - kafka-state:/var/lib/kafka/data
     healthcheck:
       test:
       - CMD
@@ -83,5 +83,7 @@ services:
     - ./bench/stackcmp/lag-dashboard.json:/var/lib/grafana/dashboards/lag.json:ro
     - grafana-state:/var/lib/grafana
 volumes:
+  kafka-state:
+    name: ${STACKCMP_KAFKA_VOLUME:?}
   grafana-state:
     name: ${STACKCMP_GRAFANA_VOLUME:?}

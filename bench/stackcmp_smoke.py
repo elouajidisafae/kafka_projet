@@ -13,15 +13,25 @@ def run():
     try:
         compose(env,"up","-d","--force-recreate","--wait","kafka",timeout=90)
         groups,topics=seed_pairs(10,"stackcmp-smoke-"+str(int(time.time())))
+        cleanup(groups,topics)
+        from confluent_kafka.admin import AdminClient
+        admin=AdminClient({"bootstrap.servers":"127.0.0.1:39092"})
+        wait_for(lambda:not any(t in admin.list_topics(timeout=5).topics for t in topics),seconds=30)
+        # Exercise the cleanup/reseed transition that a startup-only smoke missed.
+        groups,topics=seed_pairs(100,"stackcmp-smoke-next-"+str(int(time.time())))
         env=environment(output,output/"services",groups,topics)
         start_monitors(env,["khm","exporter","prometheus","grafana"])
-        khm=wait_for(lambda: get_json("http://127.0.0.1:38080/api/status")["data"] if len(get_json("http://127.0.0.1:38080/api/status")["data"])==10 else None,seconds=60)
-        prom=wait_for(lambda:query("stackcmp:lag") if len(query("stackcmp:lag"))==10 else None,seconds=60)
+        khm=wait_for(lambda: get_json("http://127.0.0.1:38080/api/status")["data"] if len(get_json("http://127.0.0.1:38080/api/status")["data"])==100 else None,seconds=60)
+        prom=wait_for(lambda:query("stackcmp:lag") if len(query("stackcmp:lag"))==100 else None,seconds=60)
         if any(row["total_lag"]!=300 for row in khm) or any(float(row["value"][1])!=300 for row in prom):
             raise ValueError("Seeded lag does not equal 300 per pair")
         sample=stats(ids(env,["khm","exporter","prometheus","grafana"]))
-        write_json(output/"validation.json",dict(pairs=10,lag_per_pair=300,khm_rows=len(khm),prometheus_rows=len(prom),
-                   docker_stats_containers=len(sample["containers"]),grafana=get_json("http://127.0.0.1:33000/api/health"),
+        grafana=get_json("http://127.0.0.1:33000/api/health")
+        stop_monitors(env)
+        cleanup(groups,topics)
+        wait_for(lambda:not any(t in admin.list_topics(timeout=5).topics for t in topics),seconds=30)
+        write_json(output/"validation.json",dict(pairs=100,cleanup_reseed_sizes=[10,100],lag_per_pair=300,khm_rows=len(khm),prometheus_rows=len(prom),
+                   docker_stats_containers=len(sample["containers"]),grafana=grafana,
                    analysis_class="validation_only",not_resource_measurement=True))
         manifest.update(status="complete",ended_at=utc());write_json(output/"manifest.json",manifest)
         print("Validation smoke complete:",output)
