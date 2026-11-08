@@ -1,5 +1,5 @@
 # Sources and equivalence limits are documented in SOURCES.md.
-# No rebalance alert is enabled: kafka_exporter v1.9.0 has no group-state metric.
+# No rebalance alert is enabled: kafka_exporter v1.10.0 has no group-state metric.
 groups:
   - name: stackcmp
     interval: 5s

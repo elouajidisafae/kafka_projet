@@ -43,7 +43,7 @@ services:
     - ${STACKCMP_CONFIG_DIR:?}/khm.yml:/app/config.yml:ro
     - ${STACKCMP_STATE_DIR:?}/khm:/app/data
   exporter:
-    image: danielqsj/kafka-exporter:v1.9.0
+    image: danielqsj/kafka-exporter:v1.10.0
     ports:
     - 127.0.0.1:39308:9308
     command:

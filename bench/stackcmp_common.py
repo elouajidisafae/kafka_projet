@@ -16,7 +16,7 @@ from bench.paper_common import rotated,byte_quantity
 RESULTS=ROOT/"bench/results/stack-comparison"
 COMPOSE=ROOT/"docker-compose.stackcmp.yml"
 CONFIG=ROOT/"bench/stackcmp"
-IMAGES={"kafka":"confluentinc/cp-kafka:7.6.0","exporter":"danielqsj/kafka-exporter:v1.9.0",
+IMAGES={"kafka":"confluentinc/cp-kafka:7.6.0","exporter":"danielqsj/kafka-exporter:v1.10.0",
         "prometheus":"prom/prometheus:v3.5.0","grafana":"grafana/grafana:12.1.0"}
 SETUPS={"khm":["khm"],"prometheus":["exporter","prometheus"],"grafana":["exporter","prometheus","grafana"]}
 MEASURED=["khm","exporter","prometheus","grafana"]
