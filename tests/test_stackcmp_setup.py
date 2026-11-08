@@ -64,3 +64,25 @@ def test_offset_seed_error_checks_code_not_error_object_truthiness():
     check_committed_partitions("g",[NS(partition=0,error=None),NS(partition=1,error=Error(0))])
     with pytest.raises(RuntimeError,match="g: partition 2: code=-197"):
         check_committed_partitions("g",[NS(partition=2,error=Error(-197))])
+
+
+
+def test_offset_seeding_retries_only_transient_coordinator_errors():
+    import pytest
+    from types import SimpleNamespace as NS
+    from confluent_kafka import KafkaError
+    from bench.stackcmp_common import seed_committed_offsets
+    class Consumer:
+        calls=0
+        def commit(self,**kwargs):
+            self.calls+=1
+            return [NS(partition=p,error=KafkaError(KafkaError.NOT_COORDINATOR) if self.calls==1 else None) for p in range(3)]
+        def committed(self,*args,**kwargs): return [NS(partition=p,error=None,offset=0) for p in range(3)]
+        def poll(self,timeout): pass
+    consumer=Consumer()
+    seed_committed_offsets(consumer,"g","t",retry_delay=0)
+    assert consumer.calls==2
+    class Denied(Consumer):
+        def commit(self,**kwargs): return [NS(partition=0,error=KafkaError(KafkaError.GROUP_AUTHORIZATION_FAILED))]
+    with pytest.raises(RuntimeError,match="AUTHORIZATION"):
+        seed_committed_offsets(Denied(),"g","t",retry_delay=0)

@@ -168,6 +168,38 @@ def check_committed_partitions(group, partitions):
         raise RuntimeError(f"Offset seed failure for {group}: " + "; ".join(errors))
 
 
+def seed_committed_offsets(consumer, group, topic, timeout=45, retry_delay=.5):
+    from confluent_kafka import KafkaError, KafkaException, TopicPartition
+    transient = {getattr(KafkaError, name) for name in
+                 ("NOT_COORDINATOR", "COORDINATOR_LOAD_IN_PROGRESS", "COORDINATOR_NOT_AVAILABLE",
+                  "REQUEST_TIMED_OUT", "_TIMED_OUT", "_WAIT_COORD", "_TRANSPORT") if hasattr(KafkaError, name)}
+    deadline = time.monotonic() + timeout
+    last = "coordinator not ready"
+    while time.monotonic() < deadline:
+        try:
+            response = consumer.commit(offsets=[TopicPartition(topic,p,0) for p in range(3)], asynchronous=False)
+            errors = [part.error for part in response if part.error is not None and part.error.code() != 0]
+            if errors:
+                if not all(error.code() in transient for error in errors):
+                    check_committed_partitions(group, response)
+                last = "; ".join(str(error) for error in errors)
+            else:
+                actual = consumer.committed([TopicPartition(topic,p) for p in range(3)], timeout=min(10,max(.1,deadline-time.monotonic())))
+                errors = [part.error for part in actual if part.error is not None and part.error.code() != 0]
+                if errors and not all(error.code() in transient for error in errors):
+                    check_committed_partitions(group, actual)
+                if not errors and len(actual) == 3 and all(part.offset == 0 for part in actual):
+                    return
+                last = f"offset readback not ready: {actual}"
+        except KafkaException as exc:
+            if not exc.args or exc.args[0].code() not in transient:
+                raise
+            last = str(exc)
+        consumer.poll(0)  # Let the client refresh coordinator metadata.
+        time.sleep(retry_delay)
+    raise TimeoutError(f"Offset seed coordinator/readback timeout for {group}: {last}")
+
+
 def seed_pairs(size,prefix):
     # Identical paper_scalability workload: one 3-partition topic, 300 messages,
     # size inactive groups committed at zero on every partition. Only the port differs.
@@ -180,15 +212,10 @@ def seed_pairs(size,prefix):
     if producer.flush(30): raise RuntimeError("Undelivered workload messages")
     groups=[prefix+f"-g{i:03}" for i in range(size)]
     for group in groups:
-        consumer=Consumer({"bootstrap.servers":"127.0.0.1:39092","group.id":group,"enable.auto.commit":False})
+        consumer=Consumer({"bootstrap.servers":"127.0.0.1:39092","group.id":group,"enable.auto.commit":False,"socket.timeout.ms":10000})
         try:
             consumer.assign([TopicPartition(topic,p,0) for p in range(3)])
-            response=consumer.commit(offsets=[TopicPartition(topic,p,0) for p in range(3)],asynchronous=False)
-            check_committed_partitions(group, response)
-            actual = consumer.committed([TopicPartition(topic,p) for p in range(3)], timeout=10)
-            check_committed_partitions(group, actual)
-            if len(actual) != 3 or any(part.offset != 0 for part in actual):
-                raise RuntimeError(f"Offset seed readback mismatch for {group}: {actual}")
+            seed_committed_offsets(consumer, group, topic)
         finally: consumer.close()
     return groups,[topic]
 
