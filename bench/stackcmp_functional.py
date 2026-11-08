@@ -71,6 +71,15 @@ def observe(output,scenario,group,seconds):
                 timing="First observed response after scenario event; <=1-second polling plus request latency. No observation means not seen in this fixed window.")
 
 
+def create_scenario_topics(topics):
+    from confluent_kafka.admin import AdminClient, NewTopic
+    # Futures do not keep the AdminClient alive; retain it until every result resolves.
+    admin = AdminClient({"bootstrap.servers": "localhost:39092"})
+    futures = admin.create_topics([NewTopic(topic, 3, 1) for topic in topics])
+    for future in futures.values():
+        future.result(30)
+
+
 def run():
     prep=prepared();output=phase("functional")
     env=environment(output,output/"bootstrap")
@@ -83,10 +92,9 @@ def run():
     try:
         compose(env,"up","-d","--force-recreate","--wait","kafka",timeout=240)
         from confluent_kafka import Producer
-        from confluent_kafka.admin import AdminClient,NewTopic
         prefix="stackcmp-"+str(int(time.time()))
         topics=[prefix+"-bottleneck",prefix+"-stranded"]
-        for future in AdminClient({"bootstrap.servers":"localhost:39092"}).create_topics([NewTopic(t,3,1) for t in topics]).values(): future.result(30)
+        create_scenario_topics(topics)
         members=[Member(topics[0],10),Member(topics[1],0)]
         threads=[threading.Thread(target=m.run,daemon=True) for m in members]
         for thread in threads: thread.start()

@@ -66,3 +66,26 @@ without treating them as pure memory regressions.
 All output folders have manifests; only a completed manifest and full schedule
 qualify as measurements. No benchmark results have been collected merely by
 adding these scripts/configuration files.
+
+
+## Named retry after an implementation failure
+
+Keep every old result folder. In the same PowerShell session, set a new attempt
+name before prepare and keep it set for functional and resource commands:
+
+```powershell
+$env:STACKCMP_ATTEMPT = 'retry1'
+.\.venv-batch2\Scripts\python.exe bench/stackcmp_prepare.py
+.\.venv-batch2\Scripts\python.exe bench/stackcmp_functional.py
+```
+
+This creates `prepare-retry1/`, `functional-retry1/` and later
+`resources-retry1/`; the matching prepare manifest is selected automatically.
+Every attempt folder still uses exclusive creation. Refresh prepare after a source
+fix so its commit/image provenance remains valid; cached image layers can be reused.
+Do not use retries to select favourable measurements. Keep the failed manifest and
+its recorded reason. To return to unsuffixed paths in a later session:
+
+```powershell
+Remove-Item Env:STACKCMP_ATTEMPT
+```

@@ -28,3 +28,20 @@ def test_resource_sample_sums_the_same_container_stats_fields(monkeypatch):
     monkeypatch.setattr(common,"command",lambda *a,**kw:raw)
     result=stats({"prometheus":"a","exporter":"b"})
     assert result["memory_bytes"]==30*1024**2 and result["cpu_percent"]==5
+
+
+
+def test_named_retry_preserves_old_results_and_selects_matching_prepare(tmp_path,monkeypatch):
+    import pytest
+    from bench import stackcmp_common as common
+    monkeypatch.setattr(common,"RESULTS",tmp_path)
+    previous=tmp_path/"functional"
+    previous.mkdir()
+    (previous/"manifest.json").write_text("failed evidence")
+    monkeypatch.setenv("STACKCMP_ATTEMPT","retry1")
+    assert common.phase("functional")==tmp_path/"functional-retry1"
+    assert common.phase_name("prepare")=="prepare-retry1"
+    assert (previous/"manifest.json").read_text()=="failed evidence"
+    with pytest.raises(FileExistsError): common.phase("functional")
+    monkeypatch.setenv("STACKCMP_ATTEMPT","../escape")
+    with pytest.raises(ValueError): common.phase("resources")

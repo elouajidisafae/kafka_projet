@@ -31,8 +31,15 @@ def commit():
     return command("git","rev-parse","HEAD")
 
 
+def phase_name(name):
+    attempt = os.environ.get("STACKCMP_ATTEMPT", "")
+    if attempt and not re.fullmatch(r"[A-Za-z0-9_-]+", attempt):
+        raise ValueError("STACKCMP_ATTEMPT must contain only letters, digits, underscores or hyphens")
+    return name + ("-" + attempt if attempt else "")
+
+
 def phase(name):
-    output=RESULTS/name
+    output=RESULTS/phase_name(name)
     output.mkdir(parents=True,exist_ok=False)
     return output
 
@@ -111,7 +118,7 @@ def image_record(image):
 
 
 def prepared():
-    manifest=json.loads((RESULTS/"prepare/manifest.json").read_text())
+    manifest=json.loads((RESULTS/phase_name("prepare")/"manifest.json").read_text())
     if manifest["commit"]!=commit() or manifest["status"]!="complete": raise ValueError("Run prepare for this exact committed source first")
     for record in manifest["images"].values():
         if image_record(record["reference"])["id"]!=record["id"]: raise ValueError("Pinned image changed since preparation")
