@@ -65,10 +65,13 @@ def fit(records, baseline_fit, settings, threshold):
     selected = short_records if change else records
     result = dict(short if change else long)
     low, high = prediction_interval(selected, threshold)
+    warning_low, warning_high = prediction_interval(selected, result["warning_threshold"])
     result.update(method="multiwindow", window_used="short" if change else "long",
                   slope_short=short_slope, slope_long=long["slope"], regime_change=bool(change),
                   advice_eligible=valid and short["trend"]=="INCREASING",
                   eta_low_sec=low, eta_high_sec=high, interval_level=.90,
+                  eta_critical_low_sec=low, eta_critical_high_sec=high,
+                  eta_warning_low_sec=warning_low, eta_warning_high_sec=warning_high,
                   prediction_band=prediction_band(selected))
     return result
 

@@ -35,7 +35,15 @@ def fit_configured_forecast(records, cluster_name, group_id, topic, *, display=N
     settings = CONFIG.get("forecast", {})
     method = settings.get("method", "baseline")
     if method == "baseline":
-        return fit_forecast(records, cluster_name, group_id, topic, display=display)
+        result = fit_forecast(records, cluster_name, group_id, topic, display=display)
+        if result.get("enough_data"):
+            from .multiwindow import prediction_interval
+            for name in ("warning", "critical"):
+                low, high = prediction_interval(records, CONFIG["alerts"][name+"_threshold"], level=.90)
+                result.update({f"eta_{name}_low_sec": low, f"eta_{name}_high_sec": high})
+            result.update(eta_low_sec=result["eta_critical_low_sec"],
+                          eta_high_sec=result["eta_critical_high_sec"], interval_level=.90)
+        return result
     if method != "multiwindow":
         raise ValueError(f"Unknown forecast method: {method}")
     from .multiwindow import fit

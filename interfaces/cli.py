@@ -167,6 +167,32 @@ def history(cluster: str, group: str, topic: str, hours: int):
     console.print(table)
 
 
+def _critical_range(forecast):
+    low, high = forecast.get("eta_critical_low_sec"), forecast.get("eta_critical_high_sec")
+    if low is None:
+        return "Range unavailable"
+    return (f"{low / 60:.1f} min or later" if high is None else
+            f"{low / 60:.1f} to {high / 60:.1f} min")
+
+
+@cli.command()
+@click.option("--cluster", "-c", default=None, help="Filter by cluster")
+def forecast(cluster):
+    """Show crossing ranges and the existing single estimates from saved history."""
+    from core.forecasting import forecasts_for_request
+    table = Table(title="Lag forecast", box=box.SIMPLE_HEAVY)
+    for column in ("Cluster", "Group", "Topic", "CRITICAL range", "Point estimate", "Confidence"):
+        table.add_column(column)
+    for (name, group, topic), fitted in forecasts_for_request().items():
+        if cluster and name != cluster:
+            continue
+        eta = fitted.get("eta_critical_sec")
+        point = ("Already reached" if eta == -1 else "No projected crossing" if eta == -2
+                 else "N/A" if eta is None else f"{eta / 60:.1f} min")
+        table.add_row(name, group, topic, _critical_range(fitted), point, fitted.get("confidence", "N/A"))
+    console.print(table)
+
+
 def run_cli():
     """Point d'entrée appelé par main.py en mode CLI."""
     cli(standalone_mode=False)

@@ -59,11 +59,10 @@ let selectedForecastKey = null;
 let forecastRequest = 0;
 
 function intervalLabel(f) {
-  if (!showForecastRange || f.method !== 'multiwindow') return '';
-  if (f.eta_low_sec == null) return 'Range unavailable';
-  const low = (f.eta_low_sec / 60).toFixed(1);
-  return f.eta_high_sec == null ? `Range ${low} min or later`
-    : `Range ${low}–${(f.eta_high_sec / 60).toFixed(1)} min`;
+  if (f.eta_critical_low_sec == null) return 'Range unavailable';
+  const low = (f.eta_critical_low_sec / 60).toFixed(1);
+  return f.eta_critical_high_sec == null ? `${low} min or later`
+    : `${low} to ${(f.eta_critical_high_sec / 60).toFixed(1)} min`;
 }
 let activeCluster = null;
 let THRESHOLDS = { warning: 1000, critical: 10000 };
@@ -249,7 +248,7 @@ async function refreshForecast() {
         (${f.slope_per_min > 0 ? '+' : ''}${f.slope_per_min}/min)
       </span>
       <span>${etaBadge(f.eta_warning_min, 'WARNING')}</span>
-      <span>${etaBadge(f.eta_critical_min, 'CRITICAL')}<small style="display:block">${intervalLabel(f)}</small></span>
+      <span><strong>${intervalLabel(f)}</strong><small style="display:block">Point estimate: ${etaBadge(f.eta_critical_min, 'CRITICAL')}</small></span>
       <span class="forecast-5min" style="color:#475569">→ 5min: ${fmt(f.predicted_lag_5min)}</span>
       <span class="forecast-15min" style="color:#475569">→ 15min: ${fmt(f.predicted_lag_15min)}</span>
       <span>${confBadge(f.confidence, f.r_squared)}</span>

@@ -55,7 +55,10 @@ def golden_database(tmp_path, monkeypatch):
 ])
 def test_golden_output(golden_database, name, call):
     expected = (FIXTURES / "golden_expected" / f"{name}.json").read_text(encoding="utf-8")
-    assert canonical(call()) == expected
+    actual = call()
+    if name == "forecasts":
+        actual = legacy_forecasts(actual, expected)
+    assert canonical(actual) == expected
 
 
 def test_golden_detects_rounding_change(golden_database, monkeypatch):
@@ -68,4 +71,11 @@ def test_golden_detects_rounding_change(golden_database, monkeypatch):
     # Temporarily perturb the actual forecasting path, never the snapshot.
     monkeypatch.setattr(forecasting, "round", changed_round, raising=False)
     with pytest.raises(AssertionError):
-        assert canonical(forecasting.forecast_all()) == expected
+        assert canonical(legacy_forecasts(forecasting.forecast_all(), expected)) == expected
+
+
+def legacy_forecasts(actual, expected):
+    """Compare every frozen field; new range fields are tested separately."""
+    frozen = json.loads(expected)
+    assert len(actual) == len(frozen)
+    return [{key: row[key] for key in old} for row, old in zip(actual, frozen)]

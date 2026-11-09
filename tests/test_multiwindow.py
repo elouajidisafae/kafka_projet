@@ -31,7 +31,9 @@ def test_live_matches_frozen_offline_v3(monkeypatch, values):
     for p in actual.get('prediction_band',[]):
         assert p['lower'] <= p['mean'] <= p['upper']
     cfg['forecast']['method']='baseline'
-    assert forecasting.fit_configured_forecast(rows,'c','g','t')==forecasting.fit_forecast(rows,'c','g','t')
+    baseline = forecasting.fit_forecast(rows,'c','g','t')
+    configured = forecasting.fit_configured_forecast(rows,'c','g','t')
+    assert {k:configured[k] for k in baseline} == baseline
 
 
 @pytest.mark.parametrize('state',['EMPTY','DEAD'])
@@ -83,7 +85,11 @@ def test_multiwindow_golden(golden_database,name,call):
     for module in (db,forecasting,recommender):
         module.CONFIG['forecast'].update(method='multiwindow',short_window_minutes=15,agreement_tolerance=1.0,interval_level=.9,show_range=True)
     expected=(FIXTURES/'multiwindow_expected'/f'{name}.json').read_text(encoding='utf-8')
-    assert canonical(call())==expected
+    from test_golden_output import legacy_forecasts
+    actual = call()
+    if name == "forecasts":
+        actual = legacy_forecasts(actual, expected)
+    assert canonical(actual)==expected
 
 
 def test_smoke_guard_cannot_bypass_heldout_boundary():
