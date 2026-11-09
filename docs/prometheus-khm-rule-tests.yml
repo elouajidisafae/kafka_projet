@@ -1,0 +1,25 @@
+rule_files:
+- prometheus-khm-alerts.yml
+evaluation_interval: 5s
+tests:
+- name: advice-activates-and-disappears
+  interval: 5s
+  input_series:
+  - series: khm_recommendation_active{cluster="dev",group="payments",topic="orders",rule="scale_consumers",priority="HIGH"}
+    values: '1 1 stale'
+  alert_rule_test:
+  - eval_time: 5s
+    alertname: KHMRecommendationActive
+    exp_alerts:
+    - exp_labels:
+        cluster: dev
+        group: payments
+        topic: orders
+        rule: scale_consumers
+        priority: HIGH
+        severity: HIGH
+      exp_annotations:
+        summary: KHM scale_consumers for dev/payments/orders
+  - eval_time: 10s
+    alertname: KHMRecommendationActive
+    exp_alerts: []

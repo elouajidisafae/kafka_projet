@@ -1,0 +1,9 @@
+groups:
+- name: khm-advice
+  rules:
+  - alert: KHMRecommendationActive
+    expr: khm_recommendation_active == 1
+    labels:
+      severity: '{{ $labels.priority }}'
+    annotations:
+      summary: 'KHM {{ $labels.rule }} for {{ $labels.cluster }}/{{ $labels.group }}/{{ $labels.topic }}'

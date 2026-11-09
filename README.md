@@ -92,3 +92,33 @@ and the configuration retains `recommendations.confidence_gate` for compatibilit
 `eta_critical_low_sec` and `eta_critical_high_sec`; null means no bound is
 available within the 24-hour search. Existing estimates and responsive
 `eta_low_sec` / `eta_high_sec` fields remain available.
+
+## Use KHM with an existing Prometheus
+
+Add a scrape job to your existing Prometheus configuration (replace the target
+with KHM's address reachable from Prometheus), and load the example rules:
+
+```yaml
+scrape_configs:
+  - job_name: khm
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['khm:8080']
+rule_files:
+  - /etc/prometheus/prometheus-khm-alerts.yml
+```
+
+Copy [docs/prometheus-khm-alerts.yml](docs/prometheus-khm-alerts.yml) to that
+rule-file path and reload your configuration. The example alerts on KHM's active
+advice and carries `cluster`, `group`, `topic`, `rule` and `priority` labels.
+Rule identifiers are `scale_consumers`, `review_partitions`, `stranded_messages`,
+`stalled_processing` and `stuck_rebalance`. These are the existing displayed
+recommendations after KHM's caps; the rules are not reimplemented in PromQL.
+Inactive advice disappears from `khm_recommendation_active`.
+
+`khm_forecast_critical_eta_seconds` and
+`khm_forecast_critical_eta_low_seconds` / `_high_seconds` expose the point and
+range in seconds when available. Missing bounds and unavailable projections
+have no sample; negative point-estimate sentinel values are not exported.
+Stale, ERROR and UNKNOWN pairs have no advice/forecast samples.
+No Alertmanager is included: route the example alert through your existing setup.

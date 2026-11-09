@@ -29,6 +29,7 @@ from core import __version__
 app = FastAPI(title="Kafka Health Monitor", version=__version__)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+_forecast_advice_snapshot = ({}, [])
 _current_rows = None
 _cluster_statuses = {}
 
@@ -107,7 +108,10 @@ def _background_collector():
 
             maybe_purge_old_records()
             forecast_all()
-            get_recommendations(persist=True)
+            recommendations = get_recommendations(persist=True)
+            from core.forecasting import forecasts_for_request
+            global _forecast_advice_snapshot
+            _forecast_advice_snapshot = (forecasts_for_request(), recommendations)
             # Calcul du Health Score global
             global _last_health_score
             _last_health_score = compute_health_score(results, _cluster_statuses)
@@ -336,6 +340,12 @@ def metrics():
             for metric, (section, field) in gauges.items():
                 value = summary.get(section, {}).get(field, 0) if section else summary.get(field, 0)
                 lines.append(f"{metric}{suffix} {value}")
+    from core.prometheus import forecast_advice_lines
+    eligible = {(r["cluster_name"], r["group_id"], r["topic"]) for r in rows
+                if not r.get("stale") and r["status"] not in {"ERROR", "UNKNOWN"}
+                and _cluster_statuses.get(r["cluster_name"], {}).get("reachable", True)}
+    forecasts, recommendations = _forecast_advice_snapshot
+    lines.extend(forecast_advice_lines(recommendations, forecasts, eligible))
     return "\n".join(lines)
 
 
