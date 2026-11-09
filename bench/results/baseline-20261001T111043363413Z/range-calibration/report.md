@@ -1,0 +1,103 @@
+# Second-half crossing-range evaluation
+
+Forecast-weighted descriptive coverage. Bins use predicted remaining time. Finite-width counts and open-ended counts are explicit.
+
+| Mode | Workload | Bin | Range | n | Covered | Coverage | Median width (s) | Finite widths | Open upper |
+|---|---|---|---|---:|---:|---:|---:|---:|---:|
+| baseline | burst | 0-5 | cal | 466 | 393 | 0.8433476394849786 | 1381.5556294294856 | 466 | 0 |
+| baseline | burst | 0-5 | formula | 466 | 364 | 0.7811158798283262 | 538.9940469671878 | 466 | 0 |
+| baseline | burst | 5-15 | cal | 311 | 262 | 0.842443729903537 | 521.9766031931231 | 311 | 0 |
+| baseline | burst | 5-15 | formula | 311 | 311 | 1.0 | 1026.1468204079185 | 311 | 0 |
+| baseline | burst | 15-30 | cal | 132 | 10 | 0.07575757575757576 | 236.09693485594846 | 132 | 0 |
+| baseline | burst | 15-30 | formula | 132 | 100 | 0.7575757575757576 | 1376.086990973526 | 132 | 0 |
+| baseline | burst | 30+ | cal | 1922 | 1705 | 0.8870967741935484 | 6319.911252919697 | 1922 | 0 |
+| baseline | burst | 30+ | formula | 1922 | 0 | 0.0 | 167.32494855240384 | 1922 | 0 |
+| baseline | burst | all | cal | 2831 | 2370 | 0.837160014129283 | 6086.237237953178 | 2831 | 0 |
+| baseline | burst | all | formula | 2831 | 775 | 0.27375485694101026 | 410.47896113909127 | 2831 | 0 |
+| baseline | creeping | 0-5 | cal | 592 | 590 | 0.9966216216216216 | 1757.2925160944085 | 592 | 0 |
+| baseline | creeping | 0-5 | formula | 592 | 294 | 0.4966216216216216 | 7.17373523919327 | 592 | 0 |
+| baseline | creeping | 5-15 | cal | 1194 | 1194 | 1.0 | 618.6197960615528 | 1194 | 0 |
+| baseline | creeping | 5-15 | formula | 1194 | 437 | 0.3659966499162479 | 6.3576889678734005 | 1194 | 0 |
+| baseline | creeping | 15-30 | cal | 1678 | 1621 | 0.966030989272944 | 253.59984407948502 | 1678 | 0 |
+| baseline | creeping | 15-30 | formula | 1678 | 342 | 0.20381406436233612 | 7.123853567466142 | 1678 | 0 |
+| baseline | creeping | 30+ | cal | 31 | 0 | 0.0 | 1238.0035921865156 | 31 | 0 |
+| baseline | creeping | 30+ | formula | 31 | 1 | 0.03225806451612903 | 71.74812656944368 | 31 | 0 |
+| baseline | creeping | all | cal | 3495 | 3405 | 0.9742489270386266 | 336.2097288213424 | 3495 | 0 |
+| baseline | creeping | all | formula | 3495 | 1074 | 0.3072961373390558 | 6.7321264346287535 | 3495 | 0 |
+| baseline | sawtooth | 0-5 | cal | 524 | 447 | 0.8530534351145038 | 2231.2990500409264 | 524 | 0 |
+| baseline | sawtooth | 0-5 | formula | 524 | 440 | 0.8396946564885496 | 200.96917818343925 | 524 | 0 |
+| baseline | sawtooth | 5-15 | cal | 1272 | 996 | 0.7830188679245284 | 622.2374556876437 | 1272 | 0 |
+| baseline | sawtooth | 5-15 | formula | 1272 | 1012 | 0.7955974842767296 | 206.57210429341418 | 1272 | 0 |
+| baseline | sawtooth | 15-30 | cal | 1436 | 1295 | 0.9018105849582173 | 242.34797386435434 | 1436 | 0 |
+| baseline | sawtooth | 15-30 | formula | 1436 | 1066 | 0.7423398328690808 | 262.1076383657013 | 1436 | 0 |
+| baseline | sawtooth | 30+ | cal | 348 | 264 | 0.7586206896551724 | 1640.4049761259942 | 348 | 0 |
+| baseline | sawtooth | 30+ | formula | 348 | 69 | 0.19827586206896552 | 2335.5017130747874 | 302 | 46 |
+| baseline | sawtooth | all | cal | 3580 | 3002 | 0.8385474860335196 | 479.5983047160577 | 3580 | 0 |
+| baseline | sawtooth | all | formula | 3580 | 2587 | 0.7226256983240223 | 216.3169089132616 | 3534 | 46 |
+| baseline | pooled | 0-5 | cal | 1582 | 1430 | 0.9039190897597977 | 1815.0981909659351 | 1582 | 0 |
+| baseline | pooled | 0-5 | formula | 1582 | 1098 | 0.6940581542351454 | 199.45377716805575 | 1582 | 0 |
+| baseline | pooled | 5-15 | cal | 2777 | 2452 | 0.8829672308246309 | 608.800434219306 | 2777 | 0 |
+| baseline | pooled | 5-15 | formula | 2777 | 1760 | 0.6337774576881526 | 201.5349906963404 | 2777 | 0 |
+| baseline | pooled | 15-30 | cal | 3246 | 2926 | 0.9014171287738756 | 248.2143335491661 | 3246 | 0 |
+| baseline | pooled | 15-30 | formula | 3246 | 1508 | 0.4645717806531115 | 52.69605550334836 | 3246 | 0 |
+| baseline | pooled | 30+ | cal | 2301 | 1969 | 0.8557149065623642 | 6233.538909278777 | 2301 | 0 |
+| baseline | pooled | 30+ | formula | 2301 | 70 | 0.030421555845284658 | 215.5689080412958 | 2255 | 46 |
+| baseline | pooled | all | cal | 9906 | 8777 | 0.8860286694932364 | 629.4727749398255 | 9906 | 0 |
+| baseline | pooled | all | formula | 9906 | 4436 | 0.4478094084393297 | 200.52847836314118 | 9860 | 46 |
+| multiwindow | burst | 0-5 | cal | 832 | 728 | 0.875 | 1355.6334648841423 | 832 | 0 |
+| multiwindow | burst | 0-5 | formula | 832 | 227 | 0.27283653846153844 | 23.345171041442043 | 832 | 0 |
+| multiwindow | burst | 5-15 | cal | 570 | 449 | 0.787719298245614 | 151.56586193382248 | 570 | 0 |
+| multiwindow | burst | 5-15 | formula | 570 | 205 | 0.35964912280701755 | 24.14468695836132 | 570 | 0 |
+| multiwindow | burst | 15-30 | cal | 22 | 0 | 0.0 | 202.6187869221951 | 22 | 0 |
+| multiwindow | burst | 15-30 | formula | 22 | 9 | 0.4090909090909091 | 1054.3734086496006 | 22 | 0 |
+| multiwindow | burst | 30+ | cal | 1800 | 1590 | 0.8833333333333333 | 6421.325063869456 | 1800 | 0 |
+| multiwindow | burst | 30+ | formula | 1800 | 0 | 0.0 | 160.0931236420256 | 1800 | 0 |
+| multiwindow | burst | all | cal | 3224 | 2767 | 0.8582506203473945 | 5989.3517901695905 | 3224 | 0 |
+| multiwindow | burst | all | formula | 3224 | 441 | 0.13678660049627792 | 111.1686693440497 | 3224 | 0 |
+| multiwindow | creeping | 0-5 | cal | 592 | 590 | 0.9966216216216216 | 1373.7085777492641 | 592 | 0 |
+| multiwindow | creeping | 0-5 | formula | 592 | 294 | 0.4966216216216216 | 7.17373523919327 | 592 | 0 |
+| multiwindow | creeping | 5-15 | cal | 1194 | 1194 | 1.0 | 210.9585310869599 | 1194 | 0 |
+| multiwindow | creeping | 5-15 | formula | 1194 | 437 | 0.3659966499162479 | 6.3576889678734005 | 1194 | 0 |
+| multiwindow | creeping | 15-30 | cal | 1678 | 1621 | 0.966030989272944 | 228.5311125379934 | 1678 | 0 |
+| multiwindow | creeping | 15-30 | formula | 1678 | 342 | 0.20381406436233612 | 7.123853567466142 | 1678 | 0 |
+| multiwindow | creeping | 30+ | cal | 31 | 0 | 0.0 | 1252.8918950134146 | 31 | 0 |
+| multiwindow | creeping | 30+ | formula | 31 | 1 | 0.03225806451612903 | 71.74812656944368 | 31 | 0 |
+| multiwindow | creeping | all | cal | 3495 | 3405 | 0.9742489270386266 | 238.15073843549726 | 3495 | 0 |
+| multiwindow | creeping | all | formula | 3495 | 1074 | 0.3072961373390558 | 6.7321264346287535 | 3495 | 0 |
+| multiwindow | sawtooth | 0-5 | cal | 524 | 441 | 0.8416030534351145 | 1744.248391484263 | 524 | 0 |
+| multiwindow | sawtooth | 0-5 | formula | 524 | 440 | 0.8396946564885496 | 200.96917818343925 | 524 | 0 |
+| multiwindow | sawtooth | 5-15 | cal | 1272 | 995 | 0.7822327044025157 | 212.1922067073515 | 1272 | 0 |
+| multiwindow | sawtooth | 5-15 | formula | 1272 | 1012 | 0.7955974842767296 | 206.57210429341418 | 1272 | 0 |
+| multiwindow | sawtooth | 15-30 | cal | 1436 | 1225 | 0.8530640668523677 | 218.3915068622464 | 1436 | 0 |
+| multiwindow | sawtooth | 15-30 | formula | 1436 | 1066 | 0.7423398328690808 | 262.1076383657013 | 1436 | 0 |
+| multiwindow | sawtooth | 30+ | cal | 348 | 283 | 0.8132183908045977 | 1660.1325812779157 | 348 | 0 |
+| multiwindow | sawtooth | 30+ | formula | 348 | 69 | 0.19827586206896552 | 2335.5017130747874 | 302 | 46 |
+| multiwindow | sawtooth | all | cal | 3580 | 2944 | 0.8223463687150838 | 243.87051599617507 | 3580 | 0 |
+| multiwindow | sawtooth | all | formula | 3580 | 2587 | 0.7226256983240223 | 216.3169089132616 | 3534 | 46 |
+| multiwindow | pooled | 0-5 | cal | 1948 | 1759 | 0.9029774127310062 | 1482.1592549399957 | 1948 | 0 |
+| multiwindow | pooled | 0-5 | formula | 1948 | 961 | 0.49332648870636553 | 21.405212345587298 | 1948 | 0 |
+| multiwindow | pooled | 5-15 | cal | 3036 | 2638 | 0.8689064558629777 | 193.5108330271362 | 3036 | 0 |
+| multiwindow | pooled | 5-15 | formula | 3036 | 1654 | 0.5447957839262187 | 26.465024351992128 | 3036 | 0 |
+| multiwindow | pooled | 15-30 | cal | 3136 | 2846 | 0.9075255102040817 | 224.1112844229242 | 3136 | 0 |
+| multiwindow | pooled | 15-30 | formula | 3136 | 1417 | 0.4518494897959184 | 38.03980515295291 | 3136 | 0 |
+| multiwindow | pooled | 30+ | cal | 2179 | 1873 | 0.8595686094538779 | 6341.706460481638 | 2179 | 0 |
+| multiwindow | pooled | 30+ | formula | 2179 | 70 | 0.03212482790270767 | 188.5558504069486 | 2133 | 46 |
+| multiwindow | pooled | all | cal | 10299 | 9116 | 0.8851344790756384 | 270.90946446483395 | 10299 | 0 |
+| multiwindow | pooled | all | formula | 10299 | 4102 | 0.39829109622293424 | 111.42218538495581 | 10253 | 46 |
+
+Stable backlog (all canonical forecasts; absent range counts as not starting within 30 minutes):
+
+{
+  "baseline": {
+    "n": 7130,
+    "starts_within_30min": 4300,
+    "share": 0.603085553997195
+  },
+  "multiwindow": {
+    "n": 7130,
+    "starts_within_30min": 706,
+    "share": 0.09901823281907433
+  }
+}
+
+Missing lower uncovered; null upper open-ended; finite widths only. Responsive formula recomputed on saved selected inputs, point estimates never refit.

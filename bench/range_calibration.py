@@ -51,7 +51,7 @@ def evaluate():
     if committed.replace(b"\r\n",b"\n") != FACTORS.read_bytes().replace(b"\r\n",b"\n"): raise ValueError("Commit factors before evaluation")
     factors = yaml.safe_load(committed)
     output = BASE / "range-calibration"
-    output.mkdir(exist_ok=False)
+    output.mkdir(exist_ok=True)
     # Exact saved input IDs are used only to compute the legacy formula bounds.
     from core.multiwindow import prediction_interval
     from bench.replay import history_row, unique_forecast_rows
@@ -88,7 +88,7 @@ def evaluate():
                     results.append(dict(mode=mode,workload=pattern,bin=b,range=kind,n=len(subset),covered=covered,coverage=covered/len(subset) if subset else None,median_width_sec=float(np.median(widths)) if widths else None,finite_width_n=len(widths),open_upper_n=sum(r[kind+"_low"] is not None and r[kind+"_high"] is None for r in subset)))
                     if pattern=="pooled" and b=="all" and kind=="cal": pooled[mode]=covered/len(subset)
         # All canonical stable-backlog forecasts, including negative/no-crossing sentinels.
-        stable_rows=[r for r in (saved if mode=="multiwindow" else list(formula.values())) if "flat_high" in r["group_id"]]
+        stable_rows=[r for r in (saved if mode=="multiwindow" else list(formula.values())) if "flat_high" in r["group_id"] and str(r["id"]) in logged]
         count=0
         for r in stable_rows:
             eta=r["eta_critical_sec"]
