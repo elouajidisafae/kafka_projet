@@ -265,7 +265,7 @@ async function refreshForecast() {
       <span>ETA Critical</span>
       <span>+5 min</span>
       <span>+15 min</span>
-      <span>Confidence</span>
+      <span>Fit quality</span>
     </div>
     ${rows.join('')}
   `;

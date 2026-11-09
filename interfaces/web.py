@@ -151,9 +151,11 @@ def api_history(
 
 @app.get("/api/forecast")
 def api_forecast():
-    """
-    Retourne les prédictions de lag pour tous les groupes/topics.
-    Basé sur une régression linéaire sur l'historique SQLite.
+    """Lag projections with additive WARNING/CRITICAL crossing bounds in seconds.
+
+    The compatibility field `confidence` (HIGH/MEDIUM/LOW) describes R2 fit quality
+    to recent observations, not the reliability of the projection. Missing upper
+    bounds mean no upper crossing was found within 24 hours, not certainty.
     """
     results = cached_forecast_display()
     if any(not result.get("enough_data") for result in results):

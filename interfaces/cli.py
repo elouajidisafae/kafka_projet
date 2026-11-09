@@ -181,7 +181,7 @@ def forecast(cluster):
     """Show crossing ranges and the existing single estimates from saved history."""
     from core.forecasting import forecasts_for_request
     table = Table(title="Lag forecast", box=box.SIMPLE_HEAVY)
-    for column in ("Cluster", "Group", "Topic", "CRITICAL range", "Point estimate", "Confidence"):
+    for column in ("Cluster", "Group", "Topic", "CRITICAL range", "Point estimate", "Fit quality"):
         table.add_column(column)
     for (name, group, topic), fitted in forecasts_for_request().items():
         if cluster and name != cluster:

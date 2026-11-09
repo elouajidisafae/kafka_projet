@@ -40,7 +40,7 @@ Set brokers in `config.yml` under `clusters`. Key settings:
 | `forecast.trend_deadband_msgs_per_sec` | 0.05 | Slopes within this range are stable |
 | `forecast.persist_every_cycle` | true | Save forecasts; API requests also save cached results |
 | `recommendations.max_per_pair` / `max_per_cluster` | 2 / 10 | Display limits; HIGH priority bypasses the cluster limit |
-| `recommendations.confidence_gate` | [HIGH, MEDIUM] | Confidence levels for scale/topology advice; LOW is excluded |
+| `recommendations.confidence_gate` | [HIGH, MEDIUM] | Fit quality levels for scale/topology advice; LOW is excluded |
 | `recommendations.rebalance_cycles_threshold` | 3 | Consecutive rebalancing observations before advice |
 | `retention.days` | 7 | History retention; overrides `monitor.history_retention_days` |
 | `retention.prune_every_cycles` / `prune_batch_size` | 60 / 5000 | Cleanup frequency and maximum rows per transaction |
@@ -75,3 +75,20 @@ python -m pytest -q
 ## License
 
 MIT License.
+
+## Forecast ranges and fit quality
+
+The forecast table and `python main.py --mode cli forecast` show the CRITICAL
+crossing range in both default and responsive modes, with the point estimate
+retained alongside it. A missing upper bound is shown as "min or later" (the
+search ends at 24 hours). These 90% OLS prediction bands are conditional on the
+recent linear fit; they do not guarantee 90% crossing-time coverage. See
+[archived range evidence](docs/forecast-range-evidence.md).
+
+**Fit quality** (HIGH, MEDIUM, LOW) describes R2 fit to recent observations,
+not the reliability of a projection. The API retains the `confidence` field
+and the configuration retains `recommendations.confidence_gate` for compatibility.
+`/api/forecast` adds `eta_warning_low_sec`, `eta_warning_high_sec`,
+`eta_critical_low_sec` and `eta_critical_high_sec`; null means no bound is
+available within the 24-hour search. Existing estimates and responsive
+`eta_low_sec` / `eta_high_sec` fields remain available.
