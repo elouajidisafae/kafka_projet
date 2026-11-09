@@ -19,4 +19,4 @@ dependencies = {file = ["requirements.txt"]}
 include = ["core*", "interfaces*"]
 
 [tool.setuptools.package-data]
-core = ["range_calibration.yml"]
+core = ["range_calibration.yml", "range_calibration_v2.yml", "range_calibration_v2_results.json"]

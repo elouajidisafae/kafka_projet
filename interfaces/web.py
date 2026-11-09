@@ -158,8 +158,10 @@ def api_forecast():
     """Lag projections with additive WARNING/CRITICAL crossing bounds in seconds.
 
     The compatibility field `confidence` (HIGH/MEDIUM/LOW) describes R2 fit quality
-    to recent observations, not the reliability of the projection. Missing upper
-    bounds mean no upper crossing was found within 24 hours, not certainty.
+    to recent observations, not the reliability of the projection. CRITICAL bounds
+    use empirical v2 calibration up to a predicted 30-minute crossing. Beyond that
+    horizon both bounds are null and range_status is beyond_30_minutes. Formula
+    bounds remain in explicitly named eta_*_formula_low_sec/high_sec fields.
     """
     results = cached_forecast_display()
     if any(not result.get("enough_data") for result in results):

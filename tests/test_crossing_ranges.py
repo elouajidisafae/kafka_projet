@@ -44,13 +44,59 @@ def test_frozen_runtime_factors_and_measured_coverage():
     from pathlib import Path
     from core import range_calibration as rc
     rc.load.cache_clear()
-    frozen=yaml.safe_load(Path("bench/range_calibration.yml").read_text())
+    from core.range_groups import factor_for
+    frozen=yaml.safe_load(Path("bench/range_calibration_v2.yml").read_text())
     runtime=rc.load()
     assert runtime["modes"] == frozen["modes"]
-    evaluation=json.loads(Path(runtime["evaluation"]["path"]).read_text())
+    runtime_results=json.loads(rc.RESULTS_PATH.read_text())
+    evaluation=json.loads(Path(runtime_results["source"]["path"]).read_text())
+    import hashlib
+    assert runtime_results['source']['sha256'] == hashlib.sha256(Path(runtime_results['source']['path']).read_bytes()).hexdigest()
+    rc.measured_coverage.cache_clear()
     for mode in ("baseline", "multiwindow"):
-        for eta, label in [(300,"0-5"),(301,"5-15"),(900,"5-15"),(901,"15-30"),(1800,"15-30"),(1801,"30+")]:
-            result=rc.apply(dict(enough_data=True,eta_critical_sec=eta),mode,{})
-            assert result["eta_critical_low_sec"] == frozen["modes"][mode][label]["q05"]*eta
+        for eta in (300,301,900,901,1800):
+            result=rc.apply(dict(enough_data=True,eta_critical_sec=eta,confidence='HIGH',window_seconds=600),mode,{})
+            factor=factor_for(frozen['modes'][mode],eta,'HIGH',600)
+            assert result["eta_critical_low_sec"] == factor["q05"]*eta
             assert result["range_coverage"] == evaluation["pooled_coverage"][mode]
+            assert f'{evaluation["pooled_coverage"][mode]*100:.1f}%' in result['range_tooltip']
+        beyond=rc.apply(dict(enough_data=True,eta_critical_sec=1801),mode,{})
+        assert beyond['eta_low_sec'] is beyond['eta_high_sec'] is None
+        assert beyond['range_status'] == 'beyond_30_minutes'
+        assert _critical_range(beyond) == 'more than 30 min'
     assert rc.apply(dict(enough_data=True,eta_critical_sec=-2),"baseline",{})["eta_low_sec"] is None
+
+
+def test_live_history_group_uses_selected_window_and_keeps_points():
+    from core import range_calibration as rc
+    early=dict(enough_data=True,eta_critical_sec=177,confidence='HIGH',window_seconds=299)
+    established=dict(early,window_seconds=300)
+    a=rc.apply(dict(early),'multiwindow',{})
+    b=rc.apply(dict(established),'multiwindow',{})
+    assert a['eta_critical_high_sec'] > b['eta_critical_high_sec']
+    assert {k:a[k] for k in early} == early
+    assert {k:b[k] for k in established} == established
+
+
+@pytest.mark.parametrize('method',['baseline','multiwindow'])
+def test_beyond_30_minutes_api_cli_and_metrics_omit_range(monkeypatch,method):
+    from core import range_calibration as rc
+    from interfaces import web
+    from fastapi.testclient import TestClient
+    key=('dev','g','orders')
+    f=rc.apply(dict(enough_data=True,cluster_name='dev',group_id='g',topic='orders',
+                    eta_critical_sec=1801,eta_critical_low_sec=1700,eta_critical_high_sec=1900),method,{})
+    monkeypatch.setattr(web,'cached_forecast_display',lambda:[f])
+    monkeypatch.setattr(web,'_forecast_advice_snapshot',({key:f},[]))
+    monkeypatch.setattr(web,'_status_rows',lambda:[dict(cluster_name='dev',group_id='g',topic='orders',status='OK',total_lag=10)])
+    monkeypatch.setattr(web,'_cluster_statuses',{})
+    client=TestClient(web.app)
+    value=client.get('/api/forecast').json()['forecasts'][0]
+    assert value['eta_critical_sec'] == 1801
+    assert value['eta_critical_low_sec'] is value['eta_critical_high_sec'] is None
+    assert value['eta_critical_formula_low_sec'] == 1700
+    assert _critical_range(value) == 'more than 30 min'
+    output=client.get('/metrics').text
+    assert 'khm_forecast_critical_eta_seconds{cluster="dev",group="g",topic="orders"} 1801' in output
+    assert 'khm_forecast_critical_eta_low_seconds{' not in output
+    assert 'khm_forecast_critical_eta_high_seconds{' not in output

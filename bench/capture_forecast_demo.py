@@ -136,6 +136,13 @@ def capture(method):
             assert page.evaluate("forecastChart.config.plugins.some(p => p.id === 'criticalCrossingRange')")
             assert page.locator('.forecast-identity strong').first.get_attribute('title')
             assert page.locator('.forecast-row').first.evaluate("e => getComputedStyle(e).display") == 'grid'
+            # DOM text can exist outside the screenshot: verify actual bounds too.
+            assert page.locator('#forecast-table').evaluate('''table => {
+              const right = table.getBoundingClientRect().right;
+              const cells = table.querySelectorAll('.forecast-header > span:last-child, .forecast-row > span:last-child');
+              return table.scrollWidth <= table.clientWidth && [...cells].every(cell =>
+                cell.getBoundingClientRect().right <= right && cell.getBoundingClientRect().right <= innerWidth);
+            }'''), 'Fit quality must be visible without horizontal scrolling'
             (output/'forecast-display.json').write_text(json.dumps(page.evaluate('displayedForecasts'),indent=2),encoding='utf-8')
             page.screenshot(path=str(output/'figure-forecast.png'),full_page=True,animations='disabled')
             if page_errors: raise RuntimeError(repr(page_errors))

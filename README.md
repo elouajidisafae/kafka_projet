@@ -79,10 +79,11 @@ MIT License.
 ## Forecast ranges and fit quality
 
 The forecast table and `python main.py --mode cli forecast` show the CRITICAL
-crossing range in both default and responsive modes, with the point estimate
-retained alongside it. A missing upper bound is shown as "min or later" (the
-search ends at 24 hours). These 90% OLS prediction bands are conditional on the
-recent linear fit; they do not guarantee 90% crossing-time coverage. See
+empirically calibrated crossing range in both default and responsive modes, with
+the point estimate retained alongside it. Predictions beyond 30 minutes show
+"more than 30 min" instead of a range. The formula-based prediction bands remain
+available through explicitly named API fields; their nominal 90% level does not
+guarantee 90% crossing-time coverage. See
 [archived range evidence](docs/forecast-range-evidence.md).
 
 **Fit quality** (HIGH, MEDIUM, LOW) describes R2 fit to recent observations,
@@ -90,7 +91,7 @@ not the reliability of a projection. The API retains the `confidence` field
 and the configuration retains `recommendations.confidence_gate` for compatibility.
 `/api/forecast` adds `eta_warning_low_sec`, `eta_warning_high_sec`,
 `eta_critical_low_sec` and `eta_critical_high_sec`; null means no bound is
-available within the 24-hour search. Existing estimates and responsive
+available under the v2 calibration policy. Existing estimates and responsive
 `eta_low_sec` / `eta_high_sec` fields remain available.
 
 ## Use KHM with an existing Prometheus
@@ -146,12 +147,25 @@ recorded by its capture manifest. That historical script required the matching
 frozen benchmark runs; the new demo command does not overwrite the archive.
 
 
-Crossing ranges use empirical factors frozen in `bench/range_calibration.yml` and
-copied with measured second-half coverage to `core/range_calibration.yml` (packaged
-with the runtime). Missing calibration yields no range. CRITICAL low/high fields,
-CLI, dashboard and Prometheus use these factors; API `eta_critical_formula_low_sec`
-and `eta_critical_formula_high_sec` retain the old formula for transparency.
-WARNING calibration is unavailable; its formula is exposed with analogous names.
-Only the shipped responsive 5-minute / 0.5 rule has calibrated factors.
-Measured coverage is forecast-weighted on separate repetitions, not a guarantee
-for other workloads. Formula-based recommendation wording and rules are preserved.
+Crossing ranges use v2 empirical factors frozen in `bench/range_calibration_v2.yml`
+and copied to packaged `core/range_calibration_v2.yml`. Selection uses first-half
+inner repetitions only: OLS retains horizon-only factors (C0) because no candidate
+met all coverage constraints; shipped responsive mode uses horizon × fit quality
+× selected-fit history length (C3). Groups with fewer than 200 training forecasts
+fall back to horizon-only factors. Only the shipped 5-minute / 0.5 responsive rule
+has calibrated factors. Missing calibration yields no range.
+
+Predicted crossings beyond 30 minutes show **more than 30 min**, with null API
+range bounds and no low/high Prometheus samples; the point estimate remains intact.
+The dashboard tooltip reads pooled coverage for displayed 0–30 minute ranges from
+packaged `core/range_calibration_v2_results.json`, a provenance-tagged extract of
+`bench/results/baseline-20261001T111043363413Z/range-calibration-v2/evaluation.json`.
+Coverage is forecast-weighted on separate repetitions, not a guarantee for other
+workloads. Responsive ranges are narrower with lower measured coverage; OLS retains
+its original widths within 30 minutes under the specified selection fallback.
+
+CLI, dashboard, API and Prometheus use v2 CRITICAL bounds. API
+`eta_critical_formula_low_sec` / `eta_critical_formula_high_sec` retain the old
+formula for transparency. WARNING calibration is unavailable; its formula is
+exposed with analogous names. Formula-based recommendation wording and rules
+are preserved. Restart the process after updating packaged calibration files.

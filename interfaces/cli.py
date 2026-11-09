@@ -168,6 +168,8 @@ def history(cluster: str, group: str, topic: str, hours: int):
 
 
 def _critical_range(forecast):
+    if (forecast.get("eta_critical_sec") or 0) > 1800:
+        return "more than 30 min"
     low, high = forecast.get("eta_critical_low_sec"), forecast.get("eta_critical_high_sec")
     if low is None:
         return "Range unavailable"

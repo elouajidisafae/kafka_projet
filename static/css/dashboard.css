@@ -580,11 +580,14 @@ html.light .nav-link.active {
 #forecast-table { overflow-x: auto; }
 .forecast-header, .forecast-row {
   display: grid;
-  grid-template-columns: 80px minmax(180px, 1fr) 90px 130px 110px 190px 95px 95px 110px;
-  gap: 12px;
-  min-width: 1260px;
+  grid-template-columns: 60px minmax(140px, 1fr) 80px 100px 90px 180px 75px 75px 100px;
+  gap: 8px;
+  min-width: 1000px;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 .forecast-row > span, .forecast-header > span { min-width: 0 !important; }
+.forecast-row .eta-badge { display: inline-block; white-space: nowrap; }
 .forecast-identity > * {
   display: block;
   overflow: hidden;

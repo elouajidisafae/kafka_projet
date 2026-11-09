@@ -1,0 +1,530 @@
+version: 2
+dataset: baseline-20261001T111043363413Z
+training_split: wave 0, r00-r09
+test_split: wave 1, r10-r19; untouched until after freeze commit
+horizon_bins: (0,300], (300,900], (900,1800] predicted seconds; no range beyond 1800
+history_bins: 'selected fit window_seconds: [0,300), [300,1800), [1800,infinity)'
+fit_quality: archived confidence field; HIGH/MEDIUM/LOW
+quantiles: 'forecast-weighted numpy percentile linear: 5th and 95th of observed/predicted'
+minimum_group_n: 200
+sparse_group_rule: fall back to horizon-only factors; never pool test data
+responsive:
+  short_window_minutes: 5
+  agreement_tolerance: 0.5
+selection:
+  path: bench/results/baseline-20261001T111043363413Z/range-calibration-v2/inner-selection.json
+  sha256: 0bc5950a764f74b1b812fb9c7c0aeba80ea0de5d154bb94892362b969a5c09f9
+inner_results:
+  baseline:
+    chosen: C0
+    fallback_no_qualifier: true
+    candidates:
+      C0:
+        pooled:
+          n: 3800
+          range_n: 3800
+          covered: 3488
+          coverage: 0.9178947368421052
+          shown_coverage: 0.9178947368421052
+          median_width_sec: 369.2472177746575
+        workloads:
+          burst:
+            n: 462
+            range_n: 462
+            covered: 313
+            coverage: 0.6774891774891775
+            shown_coverage: 0.6774891774891775
+            median_width_sec: 580.2138404268621
+          creeping:
+            n: 1739
+            range_n: 1739
+            covered: 1737
+            coverage: 0.9988499137435307
+            shown_coverage: 0.9988499137435307
+            median_width_sec: 344.7563308814405
+          sawtooth:
+            n: 1599
+            range_n: 1599
+            covered: 1438
+            coverage: 0.8993120700437773
+            shown_coverage: 0.8993120700437773
+            median_width_sec: 372.0730893392595
+        qualifies: false
+      C1:
+        pooled:
+          n: 3800
+          range_n: 3800
+          covered: 3436
+          coverage: 0.9042105263157895
+          shown_coverage: 0.9042105263157895
+          median_width_sec: 198.3096746870068
+        workloads:
+          burst:
+            n: 462
+            range_n: 462
+            covered: 334
+            coverage: 0.7229437229437229
+            shown_coverage: 0.7229437229437229
+            median_width_sec: 734.9426472403034
+          creeping:
+            n: 1739
+            range_n: 1739
+            covered: 1726
+            coverage: 0.99252443933295
+            shown_coverage: 0.99252443933295
+            median_width_sec: 186.9347161798105
+          sawtooth:
+            n: 1599
+            range_n: 1599
+            covered: 1376
+            coverage: 0.8605378361475923
+            shown_coverage: 0.8605378361475923
+            median_width_sec: 187.88799433797874
+        qualifies: false
+      C2:
+        pooled:
+          n: 3800
+          range_n: 3800
+          covered: 3424
+          coverage: 0.9010526315789473
+          shown_coverage: 0.9010526315789473
+          median_width_sec: 343.81898147886045
+        workloads:
+          burst:
+            n: 462
+            range_n: 462
+            covered: 282
+            coverage: 0.6103896103896104
+            shown_coverage: 0.6103896103896104
+            median_width_sec: 423.65595137742145
+          creeping:
+            n: 1739
+            range_n: 1739
+            covered: 1737
+            coverage: 0.9988499137435307
+            shown_coverage: 0.9988499137435307
+            median_width_sec: 346.2660916673221
+          sawtooth:
+            n: 1599
+            range_n: 1599
+            covered: 1405
+            coverage: 0.8786741713570981
+            shown_coverage: 0.8786741713570981
+            median_width_sec: 326.1076513820026
+        qualifies: false
+      C3:
+        pooled:
+          n: 3800
+          range_n: 3800
+          covered: 3428
+          coverage: 0.9021052631578947
+          shown_coverage: 0.9021052631578947
+          median_width_sec: 183.13745883098395
+        workloads:
+          burst:
+            n: 462
+            range_n: 462
+            covered: 334
+            coverage: 0.7229437229437229
+            shown_coverage: 0.7229437229437229
+            median_width_sec: 734.9426472403034
+          creeping:
+            n: 1739
+            range_n: 1739
+            covered: 1705
+            coverage: 0.980448533640023
+            shown_coverage: 0.980448533640023
+            median_width_sec: 160.10440234737848
+          sawtooth:
+            n: 1599
+            range_n: 1599
+            covered: 1389
+            coverage: 0.8686679174484052
+            shown_coverage: 0.8686679174484052
+            median_width_sec: 186.70513783961587
+        qualifies: false
+  multiwindow:
+    chosen: C3
+    fallback_no_qualifier: false
+    candidates:
+      C0:
+        pooled:
+          n: 4127
+          range_n: 4127
+          covered: 3791
+          coverage: 0.9185849285195057
+          shown_coverage: 0.9185849285195057
+          median_width_sec: 244.75290637631747
+        workloads:
+          burst:
+            n: 789
+            range_n: 789
+            covered: 660
+            coverage: 0.8365019011406845
+            shown_coverage: 0.8365019011406845
+            median_width_sec: 226.88977942932155
+          creeping:
+            n: 1739
+            range_n: 1739
+            covered: 1737
+            coverage: 0.9988499137435307
+            shown_coverage: 0.9988499137435307
+            median_width_sec: 247.67751168029145
+          sawtooth:
+            n: 1599
+            range_n: 1599
+            covered: 1394
+            coverage: 0.8717948717948718
+            shown_coverage: 0.8717948717948718
+            median_width_sec: 244.02175505032392
+        qualifies: true
+      C1:
+        pooled:
+          n: 4127
+          range_n: 4127
+          covered: 3611
+          coverage: 0.8749697116549552
+          shown_coverage: 0.8749697116549552
+          median_width_sec: 175.50345655730428
+        workloads:
+          burst:
+            n: 789
+            range_n: 789
+            covered: 527
+            coverage: 0.6679340937896071
+            shown_coverage: 0.6679340937896071
+            median_width_sec: 136.16784006770018
+          creeping:
+            n: 1739
+            range_n: 1739
+            covered: 1721
+            coverage: 0.9896492236917769
+            shown_coverage: 0.9896492236917769
+            median_width_sec: 183.23636747841147
+          sawtooth:
+            n: 1599
+            range_n: 1599
+            covered: 1363
+            coverage: 0.8524077548467792
+            shown_coverage: 0.8524077548467792
+            median_width_sec: 182.2277269234844
+        qualifies: false
+      C2:
+        pooled:
+          n: 4127
+          range_n: 4127
+          covered: 3822
+          coverage: 0.9260964380906227
+          shown_coverage: 0.9260964380906227
+          median_width_sec: 217.97093296750518
+        workloads:
+          burst:
+            n: 789
+            range_n: 789
+            covered: 672
+            coverage: 0.8517110266159695
+            shown_coverage: 0.8517110266159695
+            median_width_sec: 1595.8128592048793
+          creeping:
+            n: 1739
+            range_n: 1739
+            covered: 1732
+            coverage: 0.9959746981023577
+            shown_coverage: 0.9959746981023577
+            median_width_sec: 197.1596378600551
+          sawtooth:
+            n: 1599
+            range_n: 1599
+            covered: 1418
+            coverage: 0.8868042526579112
+            shown_coverage: 0.8868042526579112
+            median_width_sec: 200.9932974851116
+        qualifies: true
+      C3:
+        pooled:
+          n: 4127
+          range_n: 4127
+          covered: 3699
+          coverage: 0.8962927065665132
+          shown_coverage: 0.8962927065665132
+          median_width_sec: 178.15385042008597
+        workloads:
+          burst:
+            n: 789
+            range_n: 789
+            covered: 634
+            coverage: 0.8035487959442332
+            shown_coverage: 0.8035487959442332
+            median_width_sec: 206.85641520998877
+          creeping:
+            n: 1739
+            range_n: 1739
+            covered: 1705
+            coverage: 0.980448533640023
+            shown_coverage: 0.980448533640023
+            median_width_sec: 160.10440234737848
+          sawtooth:
+            n: 1599
+            range_n: 1599
+            covered: 1360
+            coverage: 0.8505315822388994
+            shown_coverage: 0.8505315822388994
+            median_width_sec: 184.62100499532283
+        qualifies: true
+provenance:
+  baseline_metadata: bench\data\baseline-20261001T111043363413Z\forecast_log.csv
+  baseline_metadata_sha256: 4949022f0c3af659625de18c272319e9dd1c65f0abd4b15abe913c2bd02f7a22
+  responsive_metadata: bench\results\baseline-20261001T111043363413Z\selection\candidates\w5-t0.5\replay.json
+  responsive_metadata_sha256: 6bfbfd57e110caa4ebfb4c7b5fec4ff087ec4d85ca2ab1a3050d3eb694fae56e
+  pairs:
+    baseline:
+      path: bench\results\baseline-20261001T111043363413Z\selection\baseline\pairs.csv
+      sha256: 1c78fe53f92dbc82a376c0e3462c7ba2882212b6cc38171a419074681bd0f94c
+      repetitions:
+      - bench-burst-r00-b25c84f4
+      - bench-burst-r01-b25c84f4
+      - bench-burst-r02-b25c84f4
+      - bench-burst-r03-b25c84f4
+      - bench-burst-r04-b25c84f4
+      - bench-burst-r05-b25c84f4
+      - bench-burst-r06-b25c84f4
+      - bench-burst-r07-b25c84f4
+      - bench-burst-r08-b25c84f4
+      - bench-burst-r09-b25c84f4
+      - bench-creeping-r00-b25c84f4
+      - bench-creeping-r01-b25c84f4
+      - bench-creeping-r02-b25c84f4
+      - bench-creeping-r03-b25c84f4
+      - bench-creeping-r04-b25c84f4
+      - bench-creeping-r05-b25c84f4
+      - bench-creeping-r06-b25c84f4
+      - bench-creeping-r07-b25c84f4
+      - bench-creeping-r08-b25c84f4
+      - bench-creeping-r09-b25c84f4
+      - bench-sawtooth-r00-b25c84f4
+      - bench-sawtooth-r01-b25c84f4
+      - bench-sawtooth-r02-b25c84f4
+      - bench-sawtooth-r03-b25c84f4
+      - bench-sawtooth-r04-b25c84f4
+      - bench-sawtooth-r05-b25c84f4
+      - bench-sawtooth-r06-b25c84f4
+      - bench-sawtooth-r07-b25c84f4
+      - bench-sawtooth-r08-b25c84f4
+      - bench-sawtooth-r09-b25c84f4
+    multiwindow:
+      path: bench\results\baseline-20261001T111043363413Z\selection\candidates\w5-t0.5\pairs.csv
+      sha256: 612a0dcfe45c39564ca160c11c0843afd81e8dd7705ec6723601ba72190ec630
+      repetitions:
+      - bench-burst-r00-b25c84f4
+      - bench-burst-r01-b25c84f4
+      - bench-burst-r02-b25c84f4
+      - bench-burst-r03-b25c84f4
+      - bench-burst-r04-b25c84f4
+      - bench-burst-r05-b25c84f4
+      - bench-burst-r06-b25c84f4
+      - bench-burst-r07-b25c84f4
+      - bench-burst-r08-b25c84f4
+      - bench-burst-r09-b25c84f4
+      - bench-creeping-r00-b25c84f4
+      - bench-creeping-r01-b25c84f4
+      - bench-creeping-r02-b25c84f4
+      - bench-creeping-r03-b25c84f4
+      - bench-creeping-r04-b25c84f4
+      - bench-creeping-r05-b25c84f4
+      - bench-creeping-r06-b25c84f4
+      - bench-creeping-r07-b25c84f4
+      - bench-creeping-r08-b25c84f4
+      - bench-creeping-r09-b25c84f4
+      - bench-sawtooth-r00-b25c84f4
+      - bench-sawtooth-r01-b25c84f4
+      - bench-sawtooth-r02-b25c84f4
+      - bench-sawtooth-r03-b25c84f4
+      - bench-sawtooth-r04-b25c84f4
+      - bench-sawtooth-r05-b25c84f4
+      - bench-sawtooth-r06-b25c84f4
+      - bench-sawtooth-r07-b25c84f4
+      - bench-sawtooth-r08-b25c84f4
+      - bench-sawtooth-r09-b25c84f4
+modes:
+  baseline:
+    candidate: C0
+    horizon_factors:
+      0-5:
+        n: 1584
+        q05: 0.3630040620105813
+        q95: 11.9241390363159
+      5-15:
+        n: 2802
+        q05: 0.8138541353659311
+        q95: 1.8474711713919174
+      15-30:
+        n: 3220
+        q05: 0.839263804221131
+        q95: 1.0316034660182376
+    groups:
+      0-5:
+        n: 1584
+        q05: 0.3630040620105813
+        q95: 11.9241390363159
+        fallback: false
+      5-15:
+        n: 2802
+        q05: 0.8138541353659311
+        q95: 1.8474711713919174
+        fallback: false
+      15-30:
+        n: 3220
+        q05: 0.839263804221131
+        q95: 1.0316034660182376
+        fallback: false
+  multiwindow:
+    candidate: C3
+    horizon_factors:
+      0-5:
+        n: 1937
+        q05: 0.38785801449337526
+        q95: 9.425414447054324
+      5-15:
+        n: 3157
+        q05: 0.8150176729094334
+        q95: 1.1674964215927415
+      15-30:
+        n: 3120
+        q05: 0.8583745407007339
+        q95: 1.0317011334485484
+    groups:
+      0-5|HIGH|under-5:
+        n: 630
+        q05: 0.6001470214138701
+        q95: 6.551758048261991
+        fallback: false
+      0-5|HIGH|5-30:
+        n: 1031
+        q05: 0.40857711546067177
+        q95: 1.1058075097302167
+        fallback: false
+      0-5|HIGH|30+:
+        n: 42
+        q05: 0.01763663534857646
+        q95: 0.22338176937664256
+        fallback: true
+      0-5|MEDIUM|under-5:
+        n: 156
+        q05: 4.176515873277345
+        q95: 322.4250600337982
+        fallback: true
+      0-5|MEDIUM|5-30:
+        n: 42
+        q05: 1.640675804193297
+        q95: 2.6441367598177505
+        fallback: true
+      0-5|MEDIUM|30+:
+        n: 0
+        q05: null
+        q95: null
+        fallback: true
+      0-5|LOW|under-5:
+        n: 36
+        q05: 2.0789639736935275
+        q95: 3.907026247281106
+        fallback: true
+      0-5|LOW|5-30:
+        n: 0
+        q05: null
+        q95: null
+        fallback: true
+      0-5|LOW|30+:
+        n: 0
+        q05: null
+        q95: null
+        fallback: true
+      5-15|HIGH|under-5:
+        n: 609
+        q05: 0.8222071739434197
+        q95: 1.1443158623713354
+        fallback: false
+      5-15|HIGH|5-30:
+        n: 2407
+        q05: 0.804945893377414
+        q95: 1.0420628227731419
+        fallback: false
+      5-15|HIGH|30+:
+        n: 0
+        q05: null
+        q95: null
+        fallback: true
+      5-15|MEDIUM|under-5:
+        n: 75
+        q05: 1.4425178770598244
+        q95: 4.7515762146113145
+        fallback: true
+      5-15|MEDIUM|5-30:
+        n: 16
+        q05: 2.061904410622375
+        q95: 2.4904830210749362
+        fallback: true
+      5-15|MEDIUM|30+:
+        n: 0
+        q05: null
+        q95: null
+        fallback: true
+      5-15|LOW|under-5:
+        n: 50
+        q05: 1.1151759367069287
+        q95: 2.9810140044569335
+        fallback: true
+      5-15|LOW|5-30:
+        n: 0
+        q05: null
+        q95: null
+        fallback: true
+      5-15|LOW|30+:
+        n: 0
+        q05: null
+        q95: null
+        fallback: true
+      15-30|HIGH|under-5:
+        n: 522
+        q05: 0.9570967807196541
+        q95: 1.0276292932809192
+        fallback: false
+      15-30|HIGH|5-30:
+        n: 2111
+        q05: 0.8642172113134192
+        q95: 1.0313925987343855
+        fallback: false
+      15-30|HIGH|30+:
+        n: 0
+        q05: null
+        q95: null
+        fallback: true
+      15-30|MEDIUM|under-5:
+        n: 125
+        q05: 0.8844900983369632
+        q95: 0.9963872892554397
+        fallback: true
+      15-30|MEDIUM|5-30:
+        n: 281
+        q05: 0.8196767186193161
+        q95: 0.9631821488821378
+        fallback: false
+      15-30|MEDIUM|30+:
+        n: 0
+        q05: null
+        q95: null
+        fallback: true
+      15-30|LOW|under-5:
+        n: 81
+        q05: 0.5799273251020893
+        q95: 1.6576513982705552
+        fallback: true
+      15-30|LOW|5-30:
+        n: 0
+        q05: null
+        q95: null
+        fallback: true
+      15-30|LOW|30+:
+        n: 0
+        q05: null
+        q95: null
+        fallback: true

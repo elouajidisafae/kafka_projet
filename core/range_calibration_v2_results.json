@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "pooled_coverage": {
+    "baseline": 0.8952005259697567,
+    "multiwindow": 0.8725369458128078
+  },
+  "factors_sha256": "d40329bf0649889ad85b47f815095072365434c0220a5146182789396f66a495",
+  "source": {
+    "path": "bench/results/baseline-20261001T111043363413Z/range-calibration-v2/evaluation.json",
+    "sha256": "2c5f76ab329e42489e488930876054f5dbd2a73fa0c04c8bbe419fe2a2746236"
+  },
+  "coverage_domain": "displayed positive predicted crossings at most 30 minutes; pooled over crossing workloads"
+}

@@ -63,6 +63,7 @@ function forecastEscape(value) {
 }
 
 function intervalLabel(f) {
+  if (f.eta_critical_sec > 1800) return 'more than 30 min';
   if (f.eta_critical_low_sec == null) return 'Range unavailable';
   const low = (f.eta_critical_low_sec / 60).toFixed(1);
   return f.eta_critical_high_sec == null ? `${low} min or later`
