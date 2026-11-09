@@ -248,7 +248,7 @@ async function refreshForecast() {
         (${f.slope_per_min > 0 ? '+' : ''}${f.slope_per_min}/min)
       </span>
       <span>${etaBadge(f.eta_warning_min, 'WARNING')}</span>
-      <span><strong>${intervalLabel(f)}</strong><small style="display:block">Point estimate: ${etaBadge(f.eta_critical_min, 'CRITICAL')}</small></span>
+      <span title="${f.range_tooltip || 'Range unavailable'}"><strong>${intervalLabel(f)}</strong><small style="display:block">Point estimate: ${etaBadge(f.eta_critical_min, 'CRITICAL')}</small></span>
       <span class="forecast-5min" style="color:#475569">→ 5min: ${fmt(f.predicted_lag_5min)}</span>
       <span class="forecast-15min" style="color:#475569">→ 15min: ${fmt(f.predicted_lag_15min)}</span>
       <span>${confBadge(f.confidence, f.r_squared)}</span>

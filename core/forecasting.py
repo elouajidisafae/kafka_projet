@@ -43,7 +43,8 @@ def fit_configured_forecast(records, cluster_name, group_id, topic, *, display=N
                 result.update({f"eta_{name}_low_sec": low, f"eta_{name}_high_sec": high})
             result.update(eta_low_sec=result["eta_critical_low_sec"],
                           eta_high_sec=result["eta_critical_high_sec"], interval_level=.90)
-        return result
+        from .range_calibration import apply
+        return apply(result, method, settings)
     if method != "multiwindow":
         raise ValueError(f"Unknown forecast method: {method}")
     from .multiwindow import fit
@@ -56,7 +57,8 @@ def fit_configured_forecast(records, cluster_name, group_id, topic, *, display=N
     result = fit(records, baseline_fit, settings, CONFIG["alerts"]["critical_threshold"])
     if display is not None and result.get("enough_data"):
         display.update(fitted_displays[1 if result["window_used"] == "short" else 0])
-    return result
+    from .range_calibration import apply
+    return apply(result, method, settings)
 
 
 def fit_forecast(records: list[dict], cluster_name: str, group_id: str, topic: str, *, display=None) -> dict:

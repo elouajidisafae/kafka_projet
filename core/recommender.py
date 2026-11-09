@@ -73,7 +73,7 @@ def analyze_row(cluster, group_id, topic, current_lag, state, trend, forecast,
 
     interval_text = f"R2={r_squared}"
     if forecast.get("method") == "multiwindow" and CONFIG.get("forecast", {}).get("show_range", False):
-        low, high = forecast.get("eta_low_sec"), forecast.get("eta_high_sec")
+        low, high = forecast.get("eta_critical_formula_low_sec", forecast.get("eta_low_sec")), forecast.get("eta_critical_formula_high_sec", forecast.get("eta_high_sec"))
         interval_text = ("range unavailable" if low is None else
                          f"range {low / 60:.1f} min or later" if high is None else
                          f"range {low / 60:.1f}–{high / 60:.1f} min")

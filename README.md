@@ -144,3 +144,14 @@ The original archived `bench/results/capture/figure-forecast.png` was produced
 by `bench/capture.py` at commit `88788aa57b5bbd6d698708fc2047e09748c8427d`, as
 recorded by its capture manifest. That historical script required the matching
 frozen benchmark runs; the new demo command does not overwrite the archive.
+
+
+Crossing ranges use empirical factors frozen in `bench/range_calibration.yml` and
+copied with measured second-half coverage to `core/range_calibration.yml` (packaged
+with the runtime). Missing calibration yields no range. CRITICAL low/high fields,
+CLI, dashboard and Prometheus use these factors; API `eta_critical_formula_low_sec`
+and `eta_critical_formula_high_sec` retain the old formula for transparency.
+WARNING calibration is unavailable; its formula is exposed with analogous names.
+Only the shipped responsive 5-minute / 0.5 rule has calibrated factors.
+Measured coverage is forecast-weighted on separate repetitions, not a guarantee
+for other workloads. Formula-based recommendation wording and rules are preserved.

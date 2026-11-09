@@ -25,7 +25,7 @@ def test_live_matches_frozen_offline_v3(monkeypatch, values):
     rows=records(values)
     expected=V3(cfg).fit(rows,datetime.now(timezone.utc),cfg['alerts'])
     actual=forecasting.fit_configured_forecast(rows,'c','g','t')
-    assert {k:actual[k] for k in expected}==expected
+    assert {k:(actual['eta_critical_formula_'+('low' if k=='eta_low_sec' else 'high')+'_sec'] if k in {'eta_low_sec','eta_high_sec'} else actual[k]) for k in expected}==expected
     if len(values)==400 and values[-1]>5000:
         assert actual['window_used']=='short' and actual['regime_change']
     for p in actual.get('prediction_band',[]):

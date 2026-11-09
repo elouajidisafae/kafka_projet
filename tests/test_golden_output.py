@@ -78,4 +78,6 @@ def legacy_forecasts(actual, expected):
     """Compare every frozen field; new range fields are tested separately."""
     frozen = json.loads(expected)
     assert len(actual) == len(frozen)
-    return [{key: row[key] for key in old} for row, old in zip(actual, frozen)]
+    return [{key: (row['eta_critical_formula_'+('low' if key=='eta_low_sec' else 'high')+'_sec']
+                    if key in {'eta_low_sec','eta_high_sec'} else row[key]) for key in old}
+            for row, old in zip(actual, frozen)]
