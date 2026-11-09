@@ -7,8 +7,8 @@ from bench.common import ROOT
 from bench.common import read_csv, timestamp, write_json
 
 
-def main():
-    dataset,summary=run(arm="calibration",reps=1,waves=1,duration_min=45)
+def main(receipt_dir=None):
+    dataset,summary=run(arm="calibration",reps=1,waves=1,duration_min=45,receipt_dir=receipt_dir)
     import json
     manifest=json.loads((dataset/"manifest.json").read_text())
     rows=[]
@@ -24,7 +24,7 @@ def main():
     write_json(dataset.parents[1]/"results"/manifest["run_id"]/"calibration.json",rows)
     if not all(r["passed"] for r in rows) or summary["truth_match_fraction"] is None or summary["truth_match_fraction"]<.95:
         raise SystemExit(1)
-    write_json(ROOT/"bench/results/calibration-passed.json",dict(passed=True,run_id=manifest["run_id"],fingerprint=manifest["configuration_fingerprint"]))
+    write_json(Path(receipt_dir or ROOT/"bench/results")/"calibration-passed.json",dict(passed=True,run_id=manifest["run_id"],fingerprint=manifest["configuration_fingerprint"]))
 
 
 if __name__=="__main__":

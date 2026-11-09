@@ -35,9 +35,9 @@ def fingerprint(profile):
     return hashlib.sha256(json.dumps(settings,sort_keys=True).encode()).hexdigest()
 
 
-def require_approval_receipts():
+def require_approval_receipts(receipt_dir=None):
     for name,profile in (("smoke","smoke"),("calibration","baseline")):
-        path=ROOT/"bench/results"/(name+"-passed.json")
+        path=Path(receipt_dir or ROOT/"bench/results")/(name+"-passed.json")
         if not path.exists():
             raise ValueError(f"Run and pass {name} before the baseline recording")
         receipt=json.loads(path.read_text())
@@ -45,7 +45,18 @@ def require_approval_receipts():
             raise ValueError(f"{name} result does not cover the current configuration")
 
 
-def run(arm="baseline",profile="baseline",reps=10,waves=2,duration_min=60,only_patterns=None,method=None):
+def run(arm="baseline",profile="baseline",reps=10,waves=2,duration_min=60,only_patterns=None,method=None,receipt_dir=None):
+    confirmation = None
+    if arm == "confirmation":
+        from bench.confirmation import guard
+        plan, confirmation = guard()
+        if (profile, reps, waves, duration_min, only_patterns, method) != ("baseline",10,1,60,None,None):
+            raise ValueError("Confirmation requires the frozen four workloads, 10 reps, one 60-minute wave")
+        if receipt_dir is None:
+            raise ValueError("Confirmation requires an explicit fresh checks directory")
+        if json.loads((Path(receipt_dir)/"confirmation-checks.json").read_text()) != confirmation:
+            raise ValueError("Confirmation receipts must belong to the frozen tag")
+        require_approval_receipts(receipt_dir)
     import psutil
     if reps<1 or waves<1 or duration_min<=0:
         raise ValueError("Positive repetition counts and duration required")
@@ -79,6 +90,12 @@ def run(arm="baseline",profile="baseline",reps=10,waves=2,duration_min=60,only_p
                 number=wave*reps+rep
                 name=f"bench-{pattern}-r{number:02}-{suffix}"
                 seed=int.from_bytes(hashlib.sha256(f"{run_id}/{name}".encode()).digest()[:4],"big")
+                if confirmation:
+                    forbidden = set(plan["recording"]["excluded_seeds"]) | {r["seed"] for r in repetitions}
+                    nonce = 0
+                    while seed in forbidden:
+                        nonce += 1
+                        seed=int.from_bytes(hashlib.sha256(f"{run_id}/{name}/{nonce}".encode()).digest()[:4],"big")
                 repetitions.append(dict(pattern=pattern,group_id=name,topic=name,wave=wave,seed=seed,rates=patterns[pattern]))
     # Immutable run-specific allowlist: ignore earlier benchmark groups without touching dev.
     config["include_groups"]=[r["group_id"] for r in repetitions]
@@ -92,6 +109,10 @@ def run(arm="baseline",profile="baseline",reps=10,waves=2,duration_min=60,only_p
         host=dict(os=platform.platform(),cpu=platform.processor(),cores=os.cpu_count(),ram_bytes=psutil.virtual_memory().total,python=sys.version,docker=capture(["docker","version","--format","{{.Server.Version}}"]),kafka_image="confluentinc/cp-kafka:7.6.0"),
         repetitions=repetitions,requested_duration_seconds=duration_min*60)
     write_json(dataset/"manifest.json",manifest)
+    if confirmation:
+        manifest["confirmation"] = confirmation
+        manifest["confirmation"]["receipts"] = {name:hashlib.sha256((Path(receipt_dir)/(name+"-passed.json")).read_bytes()).hexdigest() for name in ("smoke","calibration")}
+        write_json(dataset/"manifest.json",manifest)
     if method:
         manifest["forecaster_provenance"] = provenance
         write_json(dataset/"manifest.json",manifest)
@@ -158,6 +179,8 @@ def run(arm="baseline",profile="baseline",reps=10,waves=2,duration_min=60,only_p
                 f.result(30)
             for f in admin.delete_topics([r["topic"] for r in current]).values():
                 f.result(30)
+        if confirmation:
+            guard()  # Refuse to seal a recording made with changed tracked settings.
         manifest["status"]="complete"
     except KeyboardInterrupt:
         manifest["status"]="aborted"
@@ -187,7 +210,10 @@ def run(arm="baseline",profile="baseline",reps=10,waves=2,duration_min=60,only_p
         command(COMPOSE+["cp","khm:/tmp/khm-export.db",str(backup)],env=env)
         from bench.export_run import export
         export(run_id,backup,dataset)
-    return validate_recording(dataset)
+    if confirmation:
+        print(f"Confirmation recording sealed: {dataset}. No model evaluation has run.",flush=True)
+        return dataset, None
+    return validate_recording(dataset, receipt_dir=receipt_dir)
 
 
 def replay_in_container(dataset, manifest):
@@ -209,7 +235,7 @@ def replay_in_container(dataset, manifest):
     return json.loads((output/"fidelity.json").read_text())
 
 
-def validate_recording(dataset):
+def validate_recording(dataset, receipt_dir=None):
     """Resume checks on a sealed recording without repeating the workload."""
     from bench.common import verify
     dataset = Path(dataset).resolve()
@@ -242,7 +268,7 @@ def validate_recording(dataset):
         if not passed:
             raise RuntimeError("Smoke pattern/rate/commit/truth checks failed")
         receipt = "multiwindow-smoke-passed.json" if method else "smoke-passed.json"
-        write_json(ROOT/"bench/results"/receipt,dict(passed=True,run_id=run_id,fingerprint=manifest["configuration_fingerprint"], config_sha256=manifest["config_sha256"]))
+        write_json(Path(receipt_dir or ROOT/"bench/results")/receipt,dict(passed=True,run_id=run_id,fingerprint=manifest["configuration_fingerprint"], config_sha256=manifest["config_sha256"]))
     return dataset,summary
 
 

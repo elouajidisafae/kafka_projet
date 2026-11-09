@@ -80,3 +80,47 @@ First validate with `--smoke` (one short repetition, separate outputs). Full run
 Outputs are under `bench/results/scalability/` (or `bench/results/scalability-smoke/` for smoke), including manifests and raw observations. Existing runs are never overwritten; failed runs remain available for diagnosis.
 
 Re-running the recording procedure produces a new dataset; results are expected to be close to, but not identical with, the published values.
+
+
+## Fresh frozen confirmation (revision R1)
+
+The plan, recorder and evaluation code must be committed and tagged
+`revision-r1-confirmation-frozen` before any fresh recording. Commands reject a
+changed HEAD, dirty source tree or frozen file hash mismatch. Ignored recordings,
+results and internal reports do not change the source freeze. Collection stays
+explicitly OLS; every frozen model is replayed on identical exact saved inputs.
+There is no model selection or recalibration on confirmation data.
+
+Use a new receipts directory so old receipts/results remain untouched:
+
+```powershell
+$confirmationChecks = "bench/results/confirmation-checks-$(Get-Date -Format yyyyMMddTHHmmss)"
+.\.venv-batch2\Scripts\python.exe bench/confirmation.py check
+.\.venv-batch2\Scripts\python.exe bench/confirmation.py smoke --checks-dir $confirmationChecks
+.\.venv-batch2\Scripts\python.exe bench/confirmation.py calibrate --checks-dir $confirmationChecks
+.\.venv-batch2\Scripts\python.exe bench/confirmation.py record --checks-dir $confirmationChecks
+```
+
+Allow 6?10 minutes for smoke, 45?50 minutes for calibration, and 65?75 minutes for
+recording/startup/export. Recording uses one wave of ten repetitions per workload
+(40 concurrent groups), archived generator settings and new seeds. It seals a new
+`bench/data/confirmation-<timestamp>/` without model evaluation. A second guard
+runs before sealing. Do not adjust any setting after fresh recording. Preserve
+and report failed runs instead of tuning or silently repeating them.
+
+After recording is reported complete, evaluate once using its printed run ID:
+
+```powershell
+.\.venv-batch2\Scripts\python.exe bench/confirmation.py evaluate --dataset bench/data/<new-confirmation-run-id> --workers 8
+```
+
+Allow roughly 45?120 minutes with eight workers; ARIMA convergence and host load
+can extend this. All canonical origins are replayed for OLS, Responsive, Holt
+(0.2,0.2), ARIMA(2,1,2), and fixed exploratory ARIMA(2,1,1). The command checks
+the plan hash/tag and sealed dataset, then exclusively creates
+`bench/results/<new-run-id>/confirmation/`. It refuses existing output directories.
+Forecasts, Table 5 errors, positive-crossing coverage, stable false crossings,
+archived gated-advice/lead measures, and v1/v2 range tables are saved. Holt/ARIMA
+gated advice is N/A because there is no archived R2 gate for those models.
+Results tables are also appended to ignored `internal/revision-r1-step6-report.md`.
+The full preregistered definitions and file hashes are in `bench/confirmation_plan.yml`.

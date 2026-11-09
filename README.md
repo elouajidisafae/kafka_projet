@@ -134,12 +134,12 @@ From the repository root in PowerShell:
 
 Allow 5-10 minutes including Docker build/startup. This illustrative real-Kafka
 scenario uses three partitions, one consumer limited to 10 messages/s and a
-producer targeting 60 messages/s. It uses the existing demo stack on ports 9092
+producer targeting 15 messages/s in the established-history scenario (60 in `fast`). It uses the existing demo stack on ports 9092
 and 8080, stops its bundled demo workloads, and writes a fresh config, snapshots,
 manifest and `figure-forecast.png` under a timestamped `artifacts/forecast-demo-*`
 folder. It leaves the demo services available after capture. Playwright and
 Microsoft Edge must be installed in the benchmark environment. Use
-`--method multiwindow` for a responsive-mode capture.
+`--method baseline` for an OLS capture; responsive mode is now the default.
 
 The original archived `bench/results/capture/figure-forecast.png` was produced
 by `bench/capture.py` at commit `88788aa57b5bbd6d698708fc2047e09748c8427d`, as
