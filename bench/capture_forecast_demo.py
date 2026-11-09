@@ -133,6 +133,9 @@ def capture(method):
             # inner_text reflects the dashboard's uppercase header styling.
             assert 'fit quality' in page.locator('#forecast-table').inner_text().casefold()
             assert 'Point estimate:' in page.locator('#forecast-table').inner_text()
+            assert page.evaluate("forecastChart.config.plugins.some(p => p.id === 'criticalCrossingRange')")
+            assert page.locator('.forecast-identity strong').first.get_attribute('title')
+            assert page.locator('.forecast-row').first.evaluate("e => getComputedStyle(e).display") == 'grid'
             (output/'forecast-display.json').write_text(json.dumps(page.evaluate('displayedForecasts'),indent=2),encoding='utf-8')
             page.screenshot(path=str(output/'figure-forecast.png'),full_page=True,animations='disabled')
             if page_errors: raise RuntimeError(repr(page_errors))

@@ -574,3 +574,21 @@ html.light .nav-link.active {
 .cards .card:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 .card.stopped .value { color: #fb923c; }
 .card.monitoring .value { color: var(--primary); }
+
+
+/* Shared grid keeps every forecast cell under its heading, including long IDs. */
+#forecast-table { overflow-x: auto; }
+.forecast-header, .forecast-row {
+  display: grid;
+  grid-template-columns: 80px minmax(180px, 1fr) 90px 130px 110px 190px 95px 95px 110px;
+  gap: 12px;
+  min-width: 1260px;
+}
+.forecast-row > span, .forecast-header > span { min-width: 0 !important; }
+.forecast-identity > * {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.forecast-origin { font-size: .65rem; color: var(--text-muted); }

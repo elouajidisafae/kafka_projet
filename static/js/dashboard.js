@@ -58,6 +58,10 @@ let showForecastRange = false;
 let selectedForecastKey = null;
 let forecastRequest = 0;
 
+function forecastEscape(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 function intervalLabel(f) {
   if (f.eta_critical_low_sec == null) return 'Range unavailable';
   const low = (f.eta_critical_low_sec / 60).toFixed(1);
@@ -241,7 +245,7 @@ async function refreshForecast() {
     return `<div class="forecast-row" style="cursor:pointer"
       onclick="loadForecastChart(${index})">
       <span class="cluster-pill">${f.cluster_name}</span>
-      <span style="min-width:160px"><strong>${f.group_id}</strong> / ${f.topic}<small class="forecast-origin" style="display:block;max-width:160px;overflow-wrap:anywhere">As of ${f.display?.origin || 'unavailable'}</small></span>
+      <span class="forecast-identity"><strong title="${forecastEscape(f.group_id)}">${forecastEscape(f.group_id)}</strong><span title="${forecastEscape(f.topic)}">${forecastEscape(f.topic)}</span><small class="forecast-origin" title="${forecastEscape(f.display?.origin)}">As of ${forecastEscape(f.display?.origin || 'unavailable')}</small></span>
       <span style="min-width:80px">lag: <strong>${fmt(f.current_lag)}</strong></span>
       <span style="min-width:120px">
         ${trendIcon(f.trend)}
@@ -368,8 +372,28 @@ function loadForecastChart(index) {
      borderWidth: 0, pointRadius: 0, backgroundColor: '#EF9F2733', fill: '-1'}
   ] : [];
   const first = Math.min(...observed.map(p => p.x));
+  const rangeLow = f.eta_critical_low_sec;
+  const rangeHigh = f.eta_critical_high_sec;
+  const hasRange = Number.isFinite(rangeLow) && Number.isFinite(rangeHigh);
+  const chartEnd = hasRange ? Math.max(900, Math.ceil(rangeHigh / 60) * 60) : 900;
+  const crossingRange = {
+    id: 'criticalCrossingRange',
+    beforeDatasetsDraw(chart) {
+      if (!hasRange) return;
+      const {ctx, chartArea, scales: {x, y}} = chart;
+      const left = x.getPixelForValue(rangeLow), right = x.getPixelForValue(rangeHigh);
+      const criticalY = y.getPixelForValue(f.critical_threshold);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(chartArea.left, chartArea.top, chartArea.width, chartArea.height); ctx.clip();
+      ctx.fillStyle = '#E24B4A20';
+      ctx.fillRect(left, chartArea.top, Math.max(2, right-left), chartArea.height);
+      ctx.strokeStyle = '#E24B4A'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(left, criticalY); ctx.lineTo(right, criticalY); ctx.stroke();
+      ctx.restore();
+    }
+  };
   const threshold = (label, value, color) => ({
-    label, data: [{x:first,y:value},{x:900,y:value}],
+    label, data: [{x:first,y:value},{x:chartEnd,y:value}],
     borderColor: color, borderWidth: 1.5, borderDash: [4,4], pointRadius: 0
   });
   document.getElementById('forecast-chart-section').style.display = 'block';
@@ -378,6 +402,7 @@ function loadForecastChart(index) {
   document.getElementById('forecast-chart-placeholder').style.display = 'none';
   forecastChart = new Chart(document.getElementById('forecast-canvas'), {
     type: 'line',
+    plugins: [crossingRange],
     data: {datasets: [
       ...bounds,
       {label:'Observed lag', data:observed, borderColor:'#378ADD', pointRadius:3},
@@ -399,7 +424,7 @@ function loadForecastChart(index) {
         }}
       },
       scales: {
-        x: {type:'linear', min:Math.floor(first/60)*60, max:900,
+        x: {type:'linear', min:Math.floor(first/60)*60, max:chartEnd,
             title:{display:true, text:'Minutes relative to forecast timestamp (UTC)'},
             ticks:{stepSize:60, maxTicksLimit:20, font:{size:11},
                    callback:seconds => `${seconds > 0 ? '+' : ''}${Number((seconds/60).toFixed(2))}`}},
