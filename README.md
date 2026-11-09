@@ -33,7 +33,7 @@ Set brokers in `config.yml` under `clusters`. Key settings:
 | `alerts.warning_threshold` / `critical_threshold` | 1000 / 10000 | Lag thresholds in messages |
 | `monitor.refresh_interval` | 5 | Collection interval in seconds |
 | `forecast.window_hours` | 1 | History used for linear extrapolation |
-| `forecast.method` | baseline | `baseline` is the default; `multiwindow` enables responsive window selection |
+| `forecast.method` | multiwindow | Responsive 5-minute / 0.5 selection by default; `baseline` selects the original OLS fitter |
 | `forecast.short_window_minutes` / `agreement_tolerance` | 5 / 0.5 | Short-window length and relative slope disagreement needed to select it |
 | `forecast.show_range` | false | Opt in to interval ranges in advice and the dashboard band |
 | `forecast.interval_level` | 0.90 | Fixed nominal prediction level for multiwindow ranges and bands |
@@ -47,7 +47,7 @@ Set brokers in `config.yml` under `clusters`. Key settings:
 
 Scaling advice requires rising lag, a positive critical ETA and spare partitions. Topology advice flags consumers at partition capacity. Unknown membership suppresses both; other rules cover stranded messages, stalled processing and persistent rebalancing.
 
-Multiwindow advice also requires a rising short-window trend. Empty/dead groups receive restart advice instead of scaling advice. Interval ranges are estimates: held-out coverage was below the nominal 90%; an open upper bound appears as “or later.” Baseline remains the default. To enable responsive mode, set `forecast.method: multiwindow`; its defaults are 5 minutes / 0.5. The table and CLI always show crossing ranges; `forecast.show_range: true` also enables responsive advice text and the dashboard band. In an exploratory wave-two comparison (10 repetitions per pattern), responsive V2 reduced median post-burst 0-15-minute absolute ETA error from 345.1 to 28.2 seconds, but increased the median flat-high false-advice cycle fraction from 5.84% to 18.57%. All 10 repetitions improved on the former and worsened on the latter. These synthetic, exploratory results support a trade-off, not a general accuracy claim.
+Multiwindow advice also requires a rising short-window trend. Empty/dead groups receive restart advice instead of scaling advice. Interval ranges are estimates: held-out coverage was below the nominal 90%; an open upper bound appears as “or later.” Responsive mode is the default with 5 minutes / 0.5. Set `forecast.method: baseline` to use the original OLS fitter. The table and CLI always show crossing ranges; `forecast.show_range: true` also enables responsive advice text and the dashboard band. In an exploratory wave-two comparison (10 repetitions per pattern), responsive V2 reduced median post-burst 0-15-minute absolute ETA error from 345.1 to 28.2 seconds, but increased the median flat-high false-advice cycle fraction from 5.84% to 18.57%. All 10 repetitions improved on the former and worsened on the latter. These synthetic, exploratory results support a trade-off, not a general accuracy claim.
 
 Health Score is `round(100 × (1 − penalty / 75))`, using rounded penalties weighted 60 for critical pairs, 25 for warning pairs and 15 for EMPTY/DEAD pairs. Weights are fixed. Bands are Excellent (90+), Good (70+), Degraded (50+), Poor (30+) and Critical (below 30). Configuration audit events retain submitted values and a timestamp, not old values; configuration editing is available through the web interface, not the CLI.
 

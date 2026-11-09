@@ -11,7 +11,7 @@ monitor:
   history_retention_days: 7
   refresh_interval: 5
 forecast:
-  method: baseline
+  method: multiwindow
   short_window_minutes: 5
   agreement_tolerance: 0.5
   interval_level: 0.90

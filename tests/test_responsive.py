@@ -13,7 +13,7 @@ from test_variants import records
 
 def test_responsive_defaults_match_v2_and_ranges_are_opt_in(monkeypatch):
     cfg=deepcopy(DEFAULTS)
-    assert cfg['forecast']['method']=='baseline'
+    assert cfg['forecast']['method']=='multiwindow'
     assert cfg['forecast']['show_range'] is False
     cfg['forecast']['method']='multiwindow'
     monkeypatch.setattr(forecasting,'CONFIG',cfg)
@@ -49,3 +49,22 @@ def test_exploratory_split_is_only_wave_two(monkeypatch):
     actual,provenance=splits.select_repetitions({'repetitions':reps},'heldout-exploratory',True)
     assert actual==[reps[1]]
     assert provenance['params_commit']=='abc'
+
+
+def test_config_loads_responsive_and_baseline_remains_selectable(monkeypatch, tmp_path):
+    from core import config_loader
+    import yaml
+    shipped=yaml.safe_load((config_loader.CONFIG_PATH).read_text())
+    assert shipped['forecast']['method']=='multiwindow'
+    monkeypatch.setattr(config_loader,'CONFIG_PATH',tmp_path/'config.yml')
+    cfg=config_loader.load_config()
+    assert cfg['forecast']['method']=='multiwindow'
+    assert cfg['forecast']['short_window_minutes']==5
+    assert cfg['forecast']['agreement_tolerance']==.5
+    config_loader.CONFIG_PATH.write_text('forecast:\n  method: baseline\n')
+    cfg=config_loader.load_config()
+    monkeypatch.setattr(forecasting,'CONFIG',cfg)
+    rows=records([i*10 for i in range(100)])
+    result=forecasting.fit_configured_forecast(rows,'c','g','t')
+    original=forecasting.fit_forecast(rows,'c','g','t')
+    assert {k:result[k] for k in original}==original

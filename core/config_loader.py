@@ -17,7 +17,7 @@ DEFAULTS = {
     "retention": {"days": 7, "prune_every_cycles": 60, "prune_batch_size": 5000},
     "alerts": {"warning_threshold": 1000, "critical_threshold": 10000},
     "forecast": {
-        "method": "baseline",
+        "method": "multiwindow",
         "short_window_minutes": 5,
         "agreement_tolerance": 0.5,
         "interval_level": 0.90,

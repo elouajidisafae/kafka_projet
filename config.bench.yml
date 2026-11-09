@@ -14,6 +14,7 @@ retention:
   prune_every_cycles: 60
   prune_batch_size: 5000
 forecast:
+  method: baseline
   persist_every_cycle: true
   record_inputs: true
   trend_deadband_msgs_per_sec: 0.05

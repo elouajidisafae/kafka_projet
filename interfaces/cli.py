@@ -180,7 +180,7 @@ def _critical_range(forecast):
 @cli.command()
 @click.option("--cluster", "-c", default=None, help="Filter by cluster")
 def forecast(cluster):
-    """Show crossing ranges and the existing single estimates from saved history."""
+    """Show crossing ranges from saved history (responsive default; baseline via config)."""
     from core.forecasting import forecasts_for_request
     table = Table(title="Lag forecast", box=box.SIMPLE_HEAVY)
     for column in ("Cluster", "Group", "Topic", "CRITICAL range", "Point estimate", "Fit quality"):

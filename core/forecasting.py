@@ -33,7 +33,7 @@ def forecast_lag(
 def fit_configured_forecast(records, cluster_name, group_id, topic, *, display=None):
     """Dispatch live forecasts while retaining the original V0 fitter."""
     settings = CONFIG.get("forecast", {})
-    method = settings.get("method", "baseline")
+    method = settings.get("method", "multiwindow")
     if method == "baseline":
         result = fit_forecast(records, cluster_name, group_id, topic, display=display)
         if result.get("enough_data"):
