@@ -130,7 +130,8 @@ def capture(method):
               }
               await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
             }''')
-            assert 'Fit quality' in page.locator('#forecast-table').inner_text()
+            # inner_text reflects the dashboard's uppercase header styling.
+            assert 'fit quality' in page.locator('#forecast-table').inner_text().casefold()
             assert 'Point estimate:' in page.locator('#forecast-table').inner_text()
             (output/'forecast-display.json').write_text(json.dumps(page.evaluate('displayedForecasts'),indent=2),encoding='utf-8')
             page.screenshot(path=str(output/'figure-forecast.png'),full_page=True,animations='disabled')
