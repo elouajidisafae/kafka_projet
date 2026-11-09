@@ -47,7 +47,7 @@ Set brokers in `config.yml` under `clusters`. Key settings:
 
 Scaling advice requires rising lag, a positive critical ETA and spare partitions. Topology advice flags consumers at partition capacity. Unknown membership suppresses both; other rules cover stranded messages, stalled processing and persistent rebalancing.
 
-Multiwindow advice also requires a rising short-window trend. Empty/dead groups receive restart advice instead of scaling advice. Interval ranges are estimates: held-out coverage was below the nominal 90%; an open upper bound appears as “or later.” Baseline remains the default. To enable responsive mode, set `forecast.method: multiwindow`; its defaults are 5 minutes / 0.5. Ranges stay hidden unless `forecast.show_range: true`. In an exploratory wave-two comparison (10 repetitions per pattern), responsive V2 reduced median post-burst 0-15-minute absolute ETA error from 345.1 to 28.2 seconds, but increased the median flat-high false-advice cycle fraction from 5.84% to 18.57%. All 10 repetitions improved on the former and worsened on the latter. These synthetic, exploratory results support a trade-off, not a general accuracy claim.
+Multiwindow advice also requires a rising short-window trend. Empty/dead groups receive restart advice instead of scaling advice. Interval ranges are estimates: held-out coverage was below the nominal 90%; an open upper bound appears as “or later.” Baseline remains the default. To enable responsive mode, set `forecast.method: multiwindow`; its defaults are 5 minutes / 0.5. The table and CLI always show crossing ranges; `forecast.show_range: true` also enables responsive advice text and the dashboard band. In an exploratory wave-two comparison (10 repetitions per pattern), responsive V2 reduced median post-burst 0-15-minute absolute ETA error from 345.1 to 28.2 seconds, but increased the median flat-high false-advice cycle fraction from 5.84% to 18.57%. All 10 repetitions improved on the former and worsened on the latter. These synthetic, exploratory results support a trade-off, not a general accuracy claim.
 
 Health Score is `round(100 × (1 − penalty / 75))`, using rounded penalties weighted 60 for critical pairs, 25 for warning pairs and 15 for EMPTY/DEAD pairs. Weights are fixed. Bands are Excellent (90+), Good (70+), Degraded (50+), Poor (30+) and Critical (below 30). Configuration audit events retain submitted values and a timestamp, not old values; configuration editing is available through the web interface, not the CLI.
 
@@ -122,3 +122,25 @@ range in seconds when available. Missing bounds and unavailable projections
 have no sample; negative point-estimate sentinel values are not exported.
 Stale, ERROR and UNKNOWN pairs have no advice/forecast samples.
 No Alertmanager is included: route the example alert through your existing setup.
+
+## Recapture the bottleneck forecast (Fig. 2)
+
+From the repository root in PowerShell:
+
+```powershell
+.\.venv-batch2\Scripts\python.exe bench/capture_forecast_demo.py --method baseline
+```
+
+Allow 5-10 minutes including Docker build/startup. This illustrative real-Kafka
+scenario uses three partitions, one consumer limited to 10 messages/s and a
+producer targeting 60 messages/s. It uses the existing demo stack on ports 9092
+and 8080, stops its bundled demo workloads, and writes a fresh config, snapshots,
+manifest and `figure-forecast.png` under a timestamped `artifacts/forecast-demo-*`
+folder. It leaves the demo services available after capture. Playwright and
+Microsoft Edge must be installed in the benchmark environment. Use
+`--method multiwindow` for a responsive-mode capture.
+
+The original archived `bench/results/capture/figure-forecast.png` was produced
+by `bench/capture.py` at commit `88788aa57b5bbd6d698708fc2047e09748c8427d`, as
+recorded by its capture manifest. That historical script required the matching
+frozen benchmark runs; the new demo command does not overwrite the archive.
