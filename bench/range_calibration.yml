@@ -1,0 +1,112 @@
+dataset: baseline-20261001T111043363413Z
+split: wave 0 / selection; repetitions r00-r09 only
+evaluation_split: wave 1 / heldout; repetitions r10-r19 only
+horizon: 'predicted seconds: (0,300], (300,900], (900,1800], (1800,infinity)'
+quantiles: numpy percentile linear, forecast-weighted; pooled burst/creeping/sawtooth
+responsive:
+  short_window_minutes: 5
+  agreement_tolerance: 0.5
+modes:
+  baseline:
+    0-5:
+      n: 1584
+      q05: 0.3630040620105813
+      q95: 11.9241390363159
+    5-15:
+      n: 2802
+      q05: 0.8138541353659311
+      q95: 1.8474711713919174
+    15-30:
+      n: 3220
+      q05: 0.839263804221131
+      q95: 1.0316034660182376
+    30+:
+      n: 2368
+      q05: 0.10693668274055741
+      q95: 0.776489734220555
+  multiwindow:
+    0-5:
+      n: 1937
+      q05: 0.38785801449337526
+      q95: 9.425414447054324
+    5-15:
+      n: 3157
+      q05: 0.8150176729094334
+      q95: 1.1674964215927415
+    15-30:
+      n: 3120
+      q05: 0.8583745407007339
+      q95: 1.0317011334485484
+    30+:
+      n: 2240
+      q05: 0.10678463797698882
+      q95: 0.7843897731924646
+provenance:
+  baseline:
+    path: bench/results/baseline-20261001T111043363413Z/selection/baseline/pairs.csv
+    sha256: 1c78fe53f92dbc82a376c0e3462c7ba2882212b6cc38171a419074681bd0f94c
+    repetitions:
+    - bench-burst-r00-b25c84f4
+    - bench-burst-r01-b25c84f4
+    - bench-burst-r02-b25c84f4
+    - bench-burst-r03-b25c84f4
+    - bench-burst-r04-b25c84f4
+    - bench-burst-r05-b25c84f4
+    - bench-burst-r06-b25c84f4
+    - bench-burst-r07-b25c84f4
+    - bench-burst-r08-b25c84f4
+    - bench-burst-r09-b25c84f4
+    - bench-creeping-r00-b25c84f4
+    - bench-creeping-r01-b25c84f4
+    - bench-creeping-r02-b25c84f4
+    - bench-creeping-r03-b25c84f4
+    - bench-creeping-r04-b25c84f4
+    - bench-creeping-r05-b25c84f4
+    - bench-creeping-r06-b25c84f4
+    - bench-creeping-r07-b25c84f4
+    - bench-creeping-r08-b25c84f4
+    - bench-creeping-r09-b25c84f4
+    - bench-sawtooth-r00-b25c84f4
+    - bench-sawtooth-r01-b25c84f4
+    - bench-sawtooth-r02-b25c84f4
+    - bench-sawtooth-r03-b25c84f4
+    - bench-sawtooth-r04-b25c84f4
+    - bench-sawtooth-r05-b25c84f4
+    - bench-sawtooth-r06-b25c84f4
+    - bench-sawtooth-r07-b25c84f4
+    - bench-sawtooth-r08-b25c84f4
+    - bench-sawtooth-r09-b25c84f4
+  multiwindow:
+    path: bench/results/baseline-20261001T111043363413Z/selection/candidates/w5-t0.5/pairs.csv
+    sha256: 612a0dcfe45c39564ca160c11c0843afd81e8dd7705ec6723601ba72190ec630
+    repetitions:
+    - bench-burst-r00-b25c84f4
+    - bench-burst-r01-b25c84f4
+    - bench-burst-r02-b25c84f4
+    - bench-burst-r03-b25c84f4
+    - bench-burst-r04-b25c84f4
+    - bench-burst-r05-b25c84f4
+    - bench-burst-r06-b25c84f4
+    - bench-burst-r07-b25c84f4
+    - bench-burst-r08-b25c84f4
+    - bench-burst-r09-b25c84f4
+    - bench-creeping-r00-b25c84f4
+    - bench-creeping-r01-b25c84f4
+    - bench-creeping-r02-b25c84f4
+    - bench-creeping-r03-b25c84f4
+    - bench-creeping-r04-b25c84f4
+    - bench-creeping-r05-b25c84f4
+    - bench-creeping-r06-b25c84f4
+    - bench-creeping-r07-b25c84f4
+    - bench-creeping-r08-b25c84f4
+    - bench-creeping-r09-b25c84f4
+    - bench-sawtooth-r00-b25c84f4
+    - bench-sawtooth-r01-b25c84f4
+    - bench-sawtooth-r02-b25c84f4
+    - bench-sawtooth-r03-b25c84f4
+    - bench-sawtooth-r04-b25c84f4
+    - bench-sawtooth-r05-b25c84f4
+    - bench-sawtooth-r06-b25c84f4
+    - bench-sawtooth-r07-b25c84f4
+    - bench-sawtooth-r08-b25c84f4
+    - bench-sawtooth-r09-b25c84f4
