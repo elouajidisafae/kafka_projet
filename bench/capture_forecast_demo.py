@@ -1,6 +1,7 @@
-"""Owner-run Fig. 2 bottleneck capture; allow 5-10 minutes including Docker build.
+"""Owner-run Fig. 2 capture: established history 12-16 min; fast scenario 5-10 min.
 
-One consumer (10 msg/s), three partitions, producer 60 msg/s. Illustrative live
+One consumer (10 msg/s), three partitions. Established producer: 15 msg/s,
+minimum selected fit history 10 min. Fast producer: 60 msg/s. Illustrative
 capture only; no benchmark results/data are read or changed. Output: artifacts/.
 """
 import argparse
@@ -17,6 +18,17 @@ from confluent_kafka import Consumer, Producer, TopicPartition
 from confluent_kafka.admin import AdminClient, NewTopic
 
 ROOT = Path(__file__).resolve().parents[1]
+SCENARIOS = {
+    'established': dict(produce=15, minimum_history_seconds=600, timeout_seconds=1200),
+    'fast': dict(produce=60, minimum_history_seconds=0, timeout_seconds=180),
+}
+
+
+def capture_ready(fitted, advice, topic, scenario):
+    return (fitted.get('enough_data') and fitted.get('eta_critical_low_sec') is not None
+            and fitted.get('eta_critical_high_sec') is not None
+            and fitted.get('window_seconds', 0) >= SCENARIOS[scenario]['minimum_history_seconds']
+            and any(r['topic']==topic and r['id'].endswith('-scale') for r in advice['recommendations']))
 
 
 def command(*args, env=None):
@@ -29,7 +41,8 @@ def api(path):
         return json.load(response)
 
 
-def capture(method):
+def capture(method, scenario="established"):
+    settings=SCENARIOS[scenario]
     stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
     output=ROOT/'artifacts'/('forecast-demo-'+stamp)
     output.mkdir(parents=True,exist_ok=False)
@@ -82,7 +95,7 @@ def capture(method):
         try:
             while not stop.is_set():
                 started=time.monotonic()
-                for i in range(60): producer.produce(topic,partition=i%3,value=b'fig2')
+                for i in range(settings["produce"]): producer.produce(topic,partition=i%3,value=b'fig2')
                 if producer.flush(10): raise RuntimeError('Undelivered demo messages')
                 stop.wait(max(0,1-(time.monotonic()-started)))
         except Exception as exc:
@@ -92,21 +105,21 @@ def capture(method):
 
     threads=[threading.Thread(target=consume,daemon=True),threading.Thread(target=produce,daemon=True)]
     manifest=dict(kind='illustrative_live_bottleneck',method=method,benchmark_evidence=False,
-                  topic=topic,partitions=3,members=1,produce_per_second=60,consume_limit_per_second=10,
+                  topic=topic,partitions=3,members=1,produce_per_second=settings['produce'],consume_limit_per_second=10,
+                  scenario=scenario,minimum_history_seconds=settings['minimum_history_seconds'],
                   commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
                   started_at=datetime.now(timezone.utc).isoformat(),status='running')
     try:
         threads[0].start()
         if not ready.wait(60) or errors: raise RuntimeError('Consumer assignment failed: '+repr(errors))
         threads[1].start()
-        deadline=time.monotonic()+180
+        deadline=time.monotonic()+settings["timeout_seconds"]
         while True:
             if errors: raise RuntimeError(repr(errors))
             forecasts=api('/api/forecast')
             fitted=next((f for f in forecasts['forecasts'] if f.get('topic')==topic),{})
             advice=api('/api/recommendations')
-            if (fitted.get('enough_data') and fitted.get('eta_critical_low_sec') is not None
-                    and any(r['topic']==topic and r['id'].endswith('-scale') for r in advice['recommendations'])):
+            if capture_ready(fitted, advice, topic, scenario):
                 break
             if time.monotonic()>deadline: raise TimeoutError('Bottleneck forecast/advice did not settle')
             time.sleep(1)
@@ -143,7 +156,18 @@ def capture(method):
               return table.scrollWidth <= table.clientWidth && [...cells].every(cell =>
                 cell.getBoundingClientRect().right <= right && cell.getBoundingClientRect().right <= innerWidth);
             }'''), 'Fit quality must be visible without horizontal scrolling'
-            (output/'forecast-display.json').write_text(json.dumps(page.evaluate('displayedForecasts'),indent=2),encoding='utf-8')
+            shown=page.evaluate('displayedForecasts')
+            displayed=next(f for f in shown if f.get('topic')==topic)
+            assert displayed.get('window_seconds',0) >= settings['minimum_history_seconds']
+            assert displayed.get('eta_critical_low_sec') is not None
+            (output/'forecast-display.json').write_text(json.dumps(shown,indent=2),encoding='utf-8')
+            values={k:displayed.get(k) for k in (
+                'current_lag','slope','slope_per_min','eta_critical_sec','eta_critical_min',
+                'eta_critical_low_sec','eta_critical_high_sec','confidence','r_squared',
+                'window_seconds','range_tooltip')}
+            values['advice']=page.locator('#recommendations-container').inner_text()
+            values['origin']=displayed.get('display',{}).get('origin')
+            (output/'displayed-values.json').write_text(json.dumps(values,indent=2),encoding='utf-8')
             page.screenshot(path=str(output/'figure-forecast.png'),full_page=True,animations='disabled')
             if page_errors: raise RuntimeError(repr(page_errors))
             browser.close()
@@ -163,5 +187,7 @@ def capture(method):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--method',choices=['baseline','multiwindow'],default='baseline')
-    capture(parser.parse_args().method)
+    parser.add_argument('--method',choices=['baseline','multiwindow'],default='multiwindow',help='Forecast mode (default: responsive multiwindow)')
+    parser.add_argument('--scenario',choices=SCENARIOS,default='established',help='Established history (default) or the old fast scenario')
+    args=parser.parse_args()
+    capture(args.method,args.scenario)

@@ -169,3 +169,16 @@ CLI, dashboard, API and Prometheus use v2 CRITICAL bounds. API
 formula for transparency. WARNING calibration is unavailable; its formula is
 exposed with analogous names. Formula-based recommendation wording and rules
 are preserved. Restart the process after updating packaged calibration files.
+
+
+Fig. 2 with established history (allow 12?16 minutes including startup):
+
+```powershell
+.\.venv-batch2\Scripts\python.exe bench/capture_forecast_demo.py --method multiwindow --scenario established
+```
+
+This scenario produces 15 msg/s against one 10 msg/s consumer on three partitions,
+with WARNING 1000 / CRITICAL 10000. It waits for at least 600 seconds of selected
+fit history and a calibrated range, then saves displayed-values.json alongside
+the screenshot, full forecast and advice snapshots. Use `--scenario fast` for the
+old 60 msg/s demonstration (5?10 minutes). Both modes remain selectable.
