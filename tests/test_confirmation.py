@@ -182,9 +182,13 @@ def test_complete_pipeline_writes_every_model_and_metric_once(tmp_path,monkeypat
     monkeypatch.setattr(ev,'load_inputs',lambda *_:({},inputs,logged))
     def fit(task):
         model,f=task
-        return dict(id=f['id'],group_id=f['group_id'],topic=f['topic'],recorded_at=f['recorded_at'],
+        result = dict(id=f['id'],group_id=f['group_id'],topic=f['topic'],recorded_at=f['recorded_at'],
                     enough_data=True,eta_critical_sec=5,trend='INCREASING',confidence='HIGH',window_seconds=600,
                     fit_failed=False,advice=[],ols_differences={},duration_seconds=0)
+        if model not in {'OLS','Responsive'}:
+            result.pop('trend')
+            result['confidence']='NOT_APPLICABLE'
+        return result
     monkeypatch.setattr(ev,'fit_task',fit)
     ev.evaluate(dataset,plan,evidence,workers=1)
     output=tmp_path/'bench/results/confirmation-synthetic/confirmation'

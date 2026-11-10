@@ -201,7 +201,7 @@ def summarize(inputs, rows, thresholds, advice_applicable, recorded_advice=None)
         # a failed ARIMA fit into a fabricated no-crossing sentinel.
         estimable = [f for f in selected if f.get('eta_critical_sec') is not None]
         metrics, _, truth, independent = score_rep(entry['rep'], entry['history'], estimable, advice,
-                                                entry['generator'], thresholds['critical_threshold'])
+                                                entry['generator'], thresholds['critical_threshold'], include_trend_metric=False)
         metrics = {k:v for k,v in metrics.items() if k.startswith(('M1','M2','M4','M6','M7'))}
         extra = secondary_metrics(entry['rep'],entry['history'],estimable,advice,entry['metadata'],
                                   thresholds['warning_threshold'],thresholds['critical_threshold'])
@@ -339,6 +339,18 @@ def evaluate(dataset, plan, evidence, workers=8):
             else:
                 os.environ[key] = value
     guard()  # Never publish a complete evaluation under modified source/settings.
+    summary = publish_aggregation(dataset, manifest, inputs, logged, results, evidence, output,
+                        internal_report=ROOT/'internal/revision-r1-step6-report.md')
+    lock = json.loads((output/'freeze.json').read_text());lock['status']='complete'
+    write_json(output/'freeze.json',lock)
+    print('Confirmation complete:',output,'quality passed:',summary['quality']['passed'],flush=True)
+
+
+def publish_aggregation(dataset, manifest, inputs, logged, results, evidence, output, *, internal_report=None):
+    """Shared tracked aggregation for fresh replays and saved immutable streams."""
+    config = manifest['config']
+    v1 = yaml.safe_load((ROOT/'bench/range_calibration.yml').read_text())
+    v2 = yaml.safe_load((ROOT/'bench/range_calibration_v2.yml').read_text())
     summary = dict(**evidence,run_id=manifest['run_id'],origins=len(logged),models={},ranges={})
     for model,rows in results.items():
         summary['models'][model] = summarize(inputs,rows,config['alerts'],model in {'OLS','Responsive'})
@@ -378,9 +390,8 @@ def evaluate(dataset, plan, evidence, workers=8):
     write_csv(output/'stable-ranges.csv',[dict(model=m,**r) for m,v in summary['ranges'].items() for r in v['stable_backlog']])
     report = report_tables(summary)
     (output/'report.md').write_text(report,encoding='utf-8')
-    internal = ROOT/'internal/revision-r1-step6-report.md';internal.parent.mkdir(exist_ok=True)
-    with internal.open('a',encoding='utf-8') as handle:
-        handle.write('\n\n## Part 5: fresh confirmation results\n\n'+report)
-    lock = json.loads((output/'freeze.json').read_text());lock['status']='complete'
-    write_json(output/'freeze.json',lock)
-    print('Confirmation complete:',output,'quality passed:',summary['quality']['passed'],flush=True)
+    if internal_report is not None:
+        internal = Path(internal_report);internal.parent.mkdir(exist_ok=True)
+        with internal.open('a',encoding='utf-8') as handle:
+            handle.write('\n\n## Part 5: fresh confirmation results\n\n'+report)
+    return summary

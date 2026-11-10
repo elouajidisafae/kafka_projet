@@ -1,0 +1,19 @@
+{
+  "fitting_performed": false,
+  "reference": "bench\\results\\confirmation-20261109T224126859684Z\\confirmation-aggregation-recovery",
+  "source_freeze_sha256": "1ee6eaebdfb74976c01eb0e828aaea0c762f7abafd64fafb22d9075f5957bc8d",
+  "streams_sha256": {
+    "ARIMA_211_exploratory.jsonl": "4758df7406e389563850248d43eacb3ac5871dcee796fd22da1ac3bf98773830",
+    "ARIMA_212.jsonl": "42fcbcdef89370fdfcc67a09e2422d45af65838d9ae731df994079c229b98ca5",
+    "Holt.jsonl": "5a28cc7d63cf5f67d446b6686b94b67bed38e7e948da908eb3d79277c3e04b09",
+    "OLS.jsonl": "2125abada57105a017cf109cb02a1fe7b602974395e82f825d133d42c5264d5d",
+    "Responsive.jsonl": "4e77a465190f144d5665f5e4cdbf98f40c47d8600b39263d912468137f4709ef"
+  },
+  "summary_identical": true,
+  "tables": {
+    "positive-crossing-coverage.csv": "every cell identical",
+    "ranges.csv": "every cell identical",
+    "stable-ranges.csv": "every cell identical",
+    "table5.csv": "every cell identical"
+  }
+}

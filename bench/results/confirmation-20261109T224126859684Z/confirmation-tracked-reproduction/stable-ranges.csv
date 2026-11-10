@@ -1,0 +1,13 @@
+model,bin,version,n,range_n,share
+OLS,0-30,v1,1341,1341,1.0
+OLS,0-30,v2,1341,1341,1.0
+OLS,30+,v1,5819,5819,1.0
+OLS,30+,v2,5819,0,0.0
+OLS,all,v1,7160,7160,1.0
+OLS,all,v2,7160,1341,0.1872905027932961
+Responsive,0-30,v1,630,630,1.0
+Responsive,0-30,v2,630,630,1.0
+Responsive,30+,v1,3439,3439,1.0
+Responsive,30+,v2,3439,0,0.0
+Responsive,all,v1,7160,4069,0.5682960893854748
+Responsive,all,v2,7160,630,0.08798882681564246

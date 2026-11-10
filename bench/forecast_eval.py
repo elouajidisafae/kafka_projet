@@ -34,7 +34,7 @@ def horizon_bin(seconds):
     return "0-5" if seconds<=300 else "5-15" if seconds<=900 else "15-30" if seconds<=1800 else "30+"
 
 
-def score_rep(rep, history, forecasts, recommendations, generator, critical):
+def score_rep(rep, history, forecasts, recommendations, generator, critical, *, include_trend_metric=True):
     truth=breach([(timestamp(r["recorded_at"]),int(r["total_lag"])) for r in history],critical)
     independent=breach([(timestamp(r["timestamp"]),r["produced"]-r["consumed"]) for r in generator],critical)
     metrics={}
@@ -55,7 +55,8 @@ def score_rep(rep, history, forecasts, recommendations, generator, critical):
         metrics[f"M1_abs_error_{label}"]=statistics.median([abs(x) for x in values]) if values else None
         metrics[f"M2_signed_error_{label}"]=statistics.median(values) if values else None
     final=[f for f in forecasts if truth is not None and truth-900<=timestamp(f["recorded_at"])<truth]
-    metrics["M3_missed_warning_rate"]=sum(float(f["eta_critical_sec"])==-2 or f["trend"]!="INCREASING" for f in final)/len(final) if final else None
+    if include_trend_metric:
+        metrics["M3_missed_warning_rate"]=sum(float(f["eta_critical_sec"])==-2 or f["trend"]!="INCREASING" for f in final)/len(final) if final else None
     advice=[r for r in recommendations if r["rule"] in {"scale","topology"} and r["priority"] in {"HIGH","MEDIUM"}]
     early=[timestamp(r["recorded_at"]) for r in advice if truth is not None and timestamp(r["recorded_at"])<truth]
     metrics["M4_advice_lead_seconds"]=truth-min(early) if early else None
