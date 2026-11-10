@@ -158,8 +158,10 @@ has calibrated factors. Missing calibration yields no range.
 Predicted crossings beyond 30 minutes show **more than 30 min**, with null API
 range bounds and no low/high Prometheus samples; the point estimate remains intact.
 The dashboard tooltip reads pooled coverage for displayed 0–30 minute ranges from
-packaged `core/range_calibration_v2_results.json`, a provenance-tagged extract of
-`bench/results/baseline-20261001T111043363413Z/range-calibration-v2/evaluation.json`.
+`bench/results/final-confirmation-latest.json`, which points by path and SHA256
+to the completed final confirmation summary. Earlier evaluation coverage is never
+substituted when final results are unavailable. The demo mounts benchmark results
+read-only so the figure uses the same confirmation file as the host.
 Coverage is forecast-weighted on separate repetitions, not a guarantee for other
 workloads. Responsive ranges are narrower with lower measured coverage; OLS retains
 its original widths within 30 minutes under the specified selection fallback.
@@ -182,3 +184,21 @@ with WARNING 1000 / CRITICAL 10000. It waits for at least 600 seconds of selecte
 fit history and a calibrated range, then saves displayed-values.json alongside
 the screenshot, full forecast and advice snapshots. Use `--scenario fast` for the
 old 60 msg/s demonstration (5?10 minutes). Both modes remain selectable.
+
+
+Forecast-driven advice (`scale` / `topology`) now requires **12 consecutive
+collection cycles** by default, selected on both archived baseline waves only.
+Other rules are immediate. Set `recommendations.forecast_persistence_cycles: 1`
+for historical behaviour. Browser/API polls do not advance the counters; a false
+condition, missing pair or restart resets the relevant run. The selected default
+is adopted regardless of final confirmation outcomes; no further recording or
+tuning follows. The chart shows only the calibrated crossing range and one legend;
+advice uses the same calibrated bounds as the table.
+
+The last-recording protocol and exact metric definitions are frozen in
+`bench/confirmation_plan_2.yml` at `revision-r1-final-frozen`. Run
+`python bench/final_confirmation.py check`, then `record`, and after the owner
+reports completion run `evaluate --dataset bench/data/<new-run-id> --workers 8`.
+Existing Step 6 smoke/calibration receipts are reused when the frozen setup
+fingerprints match. A one-attempt recording ledger prevents silently repeating
+this last recording. Established Fig. 2 capture requires completed final results.

@@ -346,25 +346,26 @@ def evaluate(dataset, plan, evidence, workers=8):
     print('Confirmation complete:',output,'quality passed:',summary['quality']['passed'],flush=True)
 
 
-def publish_aggregation(dataset, manifest, inputs, logged, results, evidence, output, *, internal_report=None):
+def publish_aggregation(dataset, manifest, inputs, logged, results, evidence, output, *, internal_report=None, model_modes=None, recorded_model="OLS"):
     """Shared tracked aggregation for fresh replays and saved immutable streams."""
     config = manifest['config']
     v1 = yaml.safe_load((ROOT/'bench/range_calibration.yml').read_text())
     v2 = yaml.safe_load((ROOT/'bench/range_calibration_v2.yml').read_text())
     summary = dict(**evidence,run_id=manifest['run_id'],origins=len(logged),models={},ranges={})
     for model,rows in results.items():
-        summary['models'][model] = summarize(inputs,rows,config['alerts'],model in {'OLS','Responsive'})
-        if model in {'OLS','Responsive'}:
-            summary['ranges'][model] = range_metrics(inputs,rows,'baseline' if model=='OLS' else 'multiwindow',v1,v2,config['alerts']['critical_threshold'])
+        mode=(model_modes or {'OLS':'baseline','Responsive':'multiwindow'}).get(model)
+        summary['models'][model] = summarize(inputs,rows,config['alerts'],mode is not None)
+        if mode is not None:
+            summary['ranges'][model] = range_metrics(inputs,rows,mode,v1,v2,config['alerts']['critical_threshold'])
     raw_forecasts = read_csv(dataset/'forecast_log.csv')
     raw_advice = read_csv(dataset/'recommendation_log.csv')
     identities, observed = recommendation_observations(raw_forecasts,raw_advice)
     advice_mismatches = []
-    for row in results['OLS']:
+    for row in results[recorded_model]:
         expected = {(r['rule'],r['priority']) for r in row['advice']}
         if expected != observed[identities[row['id']]]:
             advice_mismatches.append(dict(id=row['id'],expected=sorted(expected),recorded=sorted(observed[identities[row['id']]])))
-    summary['recorded_OLS_advice'] = summarize(inputs,results['OLS'],config['alerts'],True,recorded_advice=raw_advice)
+    summary['recorded_OLS_advice'] = summarize(inputs,results[recorded_model],config['alerts'],True,recorded_advice=raw_advice)
     summary['advice_mismatches'] = advice_mismatches
     checks = []
     for group,entry in inputs.items():

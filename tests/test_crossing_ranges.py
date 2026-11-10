@@ -58,7 +58,7 @@ def test_frozen_runtime_factors_and_measured_coverage(monkeypatch,tmp_path):
     pointer.write_text(json.dumps(dict(summary_path=str(source),sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
         model_modes={'baseline':'OLS','multiwindow':'Responsive'})))
     monkeypatch.setattr(rc,'RESULTS_PATH',pointer)
-    rc.measured_coverage.cache_clear()
+    rc._coverage.cache_clear()
     for mode in ("baseline", "multiwindow"):
         for eta in (300,301,900,901,1800):
             result=rc.apply(dict(enough_data=True,eta_critical_sec=eta,confidence='HIGH',window_seconds=600),mode,{})

@@ -124,3 +124,36 @@ archived gated-advice/lead measures, and v1/v2 range tables are saved. Holt/ARIM
 gated advice is N/A because there is no archived R2 gate for those models.
 Results tables are also appended to ignored `internal/revision-r1-step6-report.md`.
 The full preregistered definitions and file hashes are in `bench/confirmation_plan.yml`.
+
+
+## Last recording and final confirmation (Step 7)
+
+The default advice persistence is 12 collection cycles, selected only on the two
+archived baseline waves. No setting is chosen using the final recording. The
+chosen N is adopted whatever the confirmation outcome, with no further recording
+or tuning. `bench/confirmation_plan_2.yml` and tag `revision-r1-final-frozen` bind
+all settings, candidate tables, metrics, sources and reused receipts.
+
+```powershell
+# About one second: checks freeze plus unchanged setup receipt fingerprints
+.\.venv-batch2\Scripts\python.exe bench/final_confirmation.py check
+
+# LAST recording: 65?75 minutes; one wave, 10 repetitions per workload
+.\.venv-batch2\Scripts\python.exe bench/final_confirmation.py record
+
+# Only after recording is reported complete: about 5?15 minutes
+.\.venv-batch2\Scripts\python.exe bench/final_confirmation.py evaluate --dataset bench/data/<new-run-id> --workers 8
+
+# Only after final evaluation: 12?16 minutes
+.\.venv-batch2\Scripts\python.exe bench/capture_forecast_demo.py --method multiwindow --scenario established
+```
+
+The recorded OLS / N=1 collection setup and generators are unchanged; final replay
+compares OLS and Responsive, each with N=12 and N=1. Each point fitter runs once;
+advice persistence is replayed without refitting. The real CLI has an end-to-end
+small sealed synthetic-dataset test, including real fits, guard/tag checks,
+aggregation, final coverage publication and rejection of a repeated evaluation.
+Results go to a new `bench/results/<new-run-id>/confirmation/`; full tables append
+to `internal/revision-r1-step7-report.md`. The final coverage pointer is published
+only after complete aggregation and is SHA256-bound to that summary. Never rerun
+or tune to improve a disappointing result. Interrupted runs remain evidence.

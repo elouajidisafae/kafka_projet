@@ -43,6 +43,12 @@ def api(path):
 
 def capture(method, scenario="established"):
     settings=SCENARIOS[scenario]
+    if scenario == 'established':
+        import sys
+        if str(ROOT) not in sys.path: sys.path.insert(0,str(ROOT))
+        from core.range_calibration import measured_coverage
+        if not measured_coverage():
+            raise ValueError('Complete final confirmation evaluation before the final established Fig. 2 capture')
     stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
     output=ROOT/'artifacts'/('forecast-demo-'+stamp)
     output.mkdir(parents=True,exist_ok=False)

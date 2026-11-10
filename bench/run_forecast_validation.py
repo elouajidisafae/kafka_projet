@@ -54,8 +54,8 @@ def run(arm="baseline",profile="baseline",reps=10,waves=2,duration_min=60,only_p
             raise ValueError("Confirmation requires the frozen four workloads, 10 reps, one 60-minute wave")
         if receipt_dir is None:
             raise ValueError("Confirmation requires an explicit fresh checks directory")
-        if json.loads((Path(receipt_dir)/"confirmation-checks.json").read_text()) != confirmation:
-            raise ValueError("Confirmation receipts must belong to the frozen tag")
+        from bench.confirmation import validate_receipts
+        validate_receipts(plan,confirmation,Path(receipt_dir))
         require_approval_receipts(receipt_dir)
     import psutil
     if reps<1 or waves<1 or duration_min<=0:
@@ -74,6 +74,8 @@ def run(arm="baseline",profile="baseline",reps=10,waves=2,duration_min=60,only_p
     dataset.mkdir(parents=True)
     config_path=ROOT/("config.bench.smoke.yml" if profile=="smoke" else "config.bench.yml")
     config=yaml.safe_load(config_path.read_text())
+    # Preserve the archived benchmark collection policy, independently of the live default.
+    config.setdefault("recommendations",{}).setdefault("forecast_persistence_cycles",1)
     if method:
         from bench.splits import frozen_parameters
         params, provenance = frozen_parameters()

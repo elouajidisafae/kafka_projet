@@ -4,6 +4,9 @@ from collections import Counter
 from .config_loader import CONFIG
 from .forecasting import forecasts_for_request
 from .db import get_latest_per_group, get_group_state_streaks
+from .advice_persistence import AdvicePersistence
+
+_advice_persistence = AdvicePersistence()
 
 PRIORITY_ORDER = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
 RULE_ORDER = {name: i for i, name in enumerate(("scale", "topology", "stranded", "stalled", "rebalance"))}
@@ -15,12 +18,13 @@ def _cap_pair(recommendations: list[dict]) -> list[dict]:
     return recommendations[:CONFIG.get("recommendations", {}).get("max_per_pair", 2)]
 
 
-def get_recommendations(*, persist: bool = False) -> list[dict]:
+def get_recommendations(*, persist: bool = False, collection_pairs=None) -> list[dict]:
     recommendations = []
     all_matches = []
     forecasts = forecasts_for_request()
     streaks = get_group_state_streaks()
-    for row in get_latest_per_group():
+    rows = get_latest_per_group()
+    for row in rows:
         cluster, group, topic = row["cluster_name"], row["group_id"], row["topic"]
         forecast = forecasts.get((cluster, group, topic), {})
         streak = streaks.get((cluster, group))
@@ -30,6 +34,15 @@ def get_recommendations(*, persist: bool = False) -> list[dict]:
             forecast.get("trend"), forecast, consumer_count=row.get("consumer_count"),
             partition_count=row.get("partition_count"), rebalance_cycles=cycles, apply_cap=False)
         all_matches.extend(matches)
+    cycle=tuple(sorted((r['cluster_name'],r['group_id'],r['topic'],r.get('recorded_at')) for r in rows))
+    all_matches = _advice_persistence.apply(all_matches,
+        CONFIG.get('recommendations',{}).get('forecast_persistence_cycles',1),
+        advance=persist,cycle=(cycle,tuple(sorted(collection_pairs)) if collection_pairs is not None else None),
+        eligible_pairs=collection_pairs)
+    pairs={}
+    for match in all_matches:
+        pairs.setdefault((match['cluster_name'],match['group_id'],match['topic']),[]).append(match)
+    for matches in pairs.values():
         recommendations.extend(_cap_pair(matches))
 
     recommendations.sort(key=lambda r: (PRIORITY_ORDER[r["priority"]], r["cluster_name"],

@@ -19,10 +19,17 @@ def load():
         return {}
 
 
-@lru_cache(maxsize=1)
 def measured_coverage():
     try:
-        pointer = json.loads(RESULTS_PATH.read_text())
+        return _coverage(str(RESULTS_PATH), RESULTS_PATH.stat().st_mtime_ns)
+    except OSError:
+        return {}
+
+
+@lru_cache(maxsize=2)
+def _coverage(path, stamp):
+    try:
+        pointer = json.loads(Path(path).read_text())
         import hashlib
         source = Path(__file__).resolve().parents[1]/pointer['summary_path']
         raw = source.read_bytes()

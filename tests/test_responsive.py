@@ -11,7 +11,7 @@ from bench.variants import V2
 from test_variants import records
 
 
-def test_responsive_defaults_match_v2_and_ranges_are_opt_in(monkeypatch):
+def test_responsive_defaults_match_v2_and_advice_matches_horizon_limit(monkeypatch):
     cfg=deepcopy(DEFAULTS)
     assert cfg['forecast']['method']=='multiwindow'
     assert cfg['forecast']['show_range'] is False
@@ -25,9 +25,10 @@ def test_responsive_defaults_match_v2_and_ranges_are_opt_in(monkeypatch):
     def advice():
         return recommender.analyze_row('c','g','t',990,'STABLE',f['trend'],f,
                                       consumer_count=1,partition_count=3)[0]['advice']
-    assert 'range' not in advice()
+    before=advice()
+    assert 'more than 30 min' in before
     cfg['forecast']['show_range']=True
-    assert 'range' in advice()
+    assert advice()==before
 
 
 def test_exploratory_refuses_uncommitted_file_before_reading_dataset(tmp_path,monkeypatch):

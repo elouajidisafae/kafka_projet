@@ -71,7 +71,8 @@ def _collect_and_save() -> list[ConsumerGroupStatus]:
     from core.forecasting import forecast_all
     forecast_all()
     from core.recommender import get_recommendations
-    get_recommendations(persist=True)
+    get_recommendations(persist=True,collection_pairs={
+        (r.cluster_name,r.group_id,r.topic) for r in results if r.status not in {'ERROR','UNKNOWN'} and r.total_lag >= 0})
     return results
 
 

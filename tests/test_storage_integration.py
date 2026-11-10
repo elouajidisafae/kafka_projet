@@ -90,4 +90,4 @@ def test_new_defaults(tmp_path, monkeypatch):
     config = load_config()
     assert config["forecast"] == {"persist_every_cycle": True, "trend_deadband_msgs_per_sec": 0.05, "window_hours": 1,
                                   "method": "multiwindow", "short_window_minutes": 5, "agreement_tolerance": .5, "interval_level": .90, "show_range": False}
-    assert config["recommendations"] == {"max_per_cluster": 10, "max_per_pair": 2, "rebalance_cycles_threshold": 3, "confidence_gate": ["HIGH", "MEDIUM"]}
+    assert config["recommendations"] == {"forecast_persistence_cycles": 12, "max_per_cluster": 10, "max_per_pair": 2, "rebalance_cycles_threshold": 3, "confidence_gate": ["HIGH", "MEDIUM"]}

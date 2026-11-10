@@ -27,6 +27,7 @@ DEFAULTS = {
         "window_hours": 1,
     },
     "recommendations": {
+        "forecast_persistence_cycles": 12,
         "max_per_cluster": 10,
         "max_per_pair": 2,
         "rebalance_cycles_threshold": 3,

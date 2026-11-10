@@ -1,0 +1,800 @@
+version: 2
+tag: revision-r1-final-frozen
+no_tuning_after_recording: true
+last_recording: true
+statement: The chosen N is adopted as the default whatever the confirmation result.
+  No further recording or tuning follows.
+hash_convention: SHA256 of tracked file bytes with CRLF normalized to LF; plan SHA256
+  is computed from the committed tag blob and recorded in the sealed manifest. Guard
+  requires clean tree and HEAD equal to frozen tag.
+models:
+  OLS:
+    family: OLS
+    fitter: bench.replay.Baseline -> core.forecasting.fit_forecast (unchanged original/default
+      OLS fitter)
+    method: baseline
+    window_hours: 1
+    settings_file: config.bench.yml
+  Responsive:
+    family: OLS multiwindow
+    short_window_minutes: 5
+    agreement_tolerance: 0.5
+    interval_level: 0.9
+    settings_file: bench/forecaster_params_responsive.yml
+advice_persistence:
+  chosen_N: 12
+  setting: recommendations.forecast_persistence_cycles
+  candidates:
+  - 1
+  - 2
+  - 3
+  - 6
+  - 12
+  - 24
+  selection_dataset: baseline-20261001T111043363413Z
+  selection_repetitions: 80
+  selection_waves: both archived baseline waves; no Step 6 outcomes used in selection
+  rule: minimise median per-repetition S1 after-fill advice share, requiring per-workload
+    median M4 lead loss <=120 sec versus N=1; no lost estimable repetitions; ties
+    smaller N
+  lead_safeguard_interpretation: At most 120 seconds shorter median M4 lead on EACH
+    of the three crossing workloads, rather than hiding a workload loss in a pooled
+    median. No loss of estimable repetitions.
+  full_candidate_table:
+  - N: 1
+    lead_loss_sec:
+      burst: 0.0
+      creeping: 0.0
+      sawtooth: 0.0
+    leads:
+      burst:
+        median: 1823.477399945259
+        n: 20
+        q1: 1714.307925581932
+        q3: 1870.0031502246857
+      creeping:
+        median: 1760.303325176239
+        n: 20
+        q1: 1752.7024927139282
+        q3: 1765.1144900918007
+      sawtooth:
+        median: 1800.2468075752258
+        n: 20
+        q1: 1798.9550270438194
+        q3: 1802.155996620655
+    pooled_lead:
+      median: 1797.2517194747925
+      n: 60
+      q1: 1758.992460668087
+      q3: 1802.4525456428528
+    qualifies: true
+    stable_after_fill:
+      median: 0.1763869132290185
+      n: 20
+      q1: 0.13340486409155938
+      q3: 0.24014370231475496
+  - N: 2
+    lead_loss_sec:
+      burst: 5.243201017379761
+      creeping: 5.373229026794434
+      sawtooth: 5.255411148071289
+    leads:
+      burst:
+        median: 1818.2341989278793
+        n: 20
+        q1: 1708.9644919633865
+        q3: 1864.5565077066422
+      creeping:
+        median: 1754.9300961494446
+        n: 20
+        q1: 1747.5599464774132
+        q3: 1759.7417063713074
+      sawtooth:
+        median: 1794.9913964271545
+        n: 20
+        q1: 1793.6596009731293
+        q3: 1796.8676128983498
+    pooled_lead:
+      median: 1792.042625427246
+      n: 60
+      q1: 1753.627883553505
+      q3: 1797.3202979564667
+    qualifies: true
+    stable_after_fill:
+      median: 0.16998577524893316
+      n: 20
+      q1: 0.1280400572246066
+      q3: 0.23375014143928619
+  - N: 3
+    lead_loss_sec:
+      burst: 10.211514949798584
+      creeping: 10.229442954063416
+      sawtooth: 10.151476502418518
+    leads:
+      burst:
+        median: 1813.2658849954605
+        n: 20
+        q1: 1704.0622400641441
+        q3: 1859.6929324269295
+      creeping:
+        median: 1750.0738822221756
+        n: 20
+        q1: 1742.5719329714775
+        q3: 1754.8664711117744
+      sawtooth:
+        median: 1790.0953310728073
+        n: 20
+        q1: 1788.7981153130531
+        q3: 1791.9807608127594
+    pooled_lead:
+      median: 1787.0979204177856
+      n: 60
+      q1: 1748.7662725448608
+      q3: 1792.3263561725616
+    qualifies: true
+    stable_after_fill:
+      median: 0.16216216216216217
+      n: 20
+      q1: 0.12267525035765378
+      q3: 0.2273565805638174
+  - N: 6
+    lead_loss_sec:
+      burst: 25.502254962921143
+      creeping: 25.467017889022827
+      sawtooth: 25.46625506877899
+    leads:
+      burst:
+        median: 1797.975144982338
+        n: 20
+        q1: 1688.7994313240051
+        q3: 1844.3955131173134
+      creeping:
+        median: 1734.8363072872162
+        n: 20
+        q1: 1727.2280648946762
+        q3: 1739.6948966383934
+      sawtooth:
+        median: 1774.7805525064468
+        n: 20
+        q1: 1773.4796513915062
+        q3: 1776.7512712478638
+    pooled_lead:
+      median: 1771.785980463028
+      n: 60
+      q1: 1733.5583670139313
+      q3: 1776.9552439451218
+    qualifies: true
+    stable_after_fill:
+      median: 0.1415362731152205
+      n: 20
+      q1: 0.10658082975679542
+      q3: 0.21137192066468383
+  - N: 12
+    lead_loss_sec:
+      burst: 55.488821029663086
+      creeping: 55.07233500480652
+      sawtooth: 55.350964307785034
+    leads:
+      burst:
+        median: 1767.988578915596
+        n: 20
+        q1: 1659.0576560497284
+        q3: 1814.8641476631165
+      creeping:
+        median: 1705.2309901714325
+        n: 20
+        q1: 1697.2655460238457
+        q3: 1709.9373533129692
+      sawtooth:
+        median: 1744.8958432674408
+        n: 20
+        q1: 1743.6622636318207
+        q3: 1746.5809834003448
+    pooled_lead:
+      median: 1741.8306149244308
+      n: 60
+      q1: 1703.9350761771202
+      q3: 1747.227523803711
+    qualifies: true
+    stable_after_fill:
+      median: 0.11055928302370588
+      n: 20
+      q1: 0.0765379113018598
+      q3: 0.18025751072961374
+  - N: 24
+    lead_loss_sec:
+      burst: 115.97771000862122
+      creeping: 114.92664742469788
+      sawtooth: 335.1620903015137
+    leads:
+      burst:
+        median: 1707.4996899366379
+        n: 20
+        q1: 1598.8648959994316
+        q3: 1755.0248040556908
+      creeping:
+        median: 1645.3766777515411
+        n: 20
+        q1: 1636.3643453717232
+        q3: 1649.7549922466278
+      sawtooth:
+        median: 1465.0847172737122
+        n: 20
+        q1: 1462.4871688485146
+        q3: 1469.2272614240646
+    pooled_lead:
+      median: 1635.6340049505234
+      n: 60
+      q1: 1469.4516993761063
+      q3: 1658.9066895246506
+    qualifies: false
+    stable_after_fill:
+      median: 0.06294706723891273
+      n: 20
+      q1: 0.032005689900426744
+      q3: 0.12179866787953529
+  selection_path: bench\results\baseline-20261001T111043363413Z\advice-persistence-selection\selection.json
+  selection_sha256: 84a209c205522632aca585a054c8e00826f5d9fe769b8c0690dabd521ba062f9
+  secondary_check:
+    dataset: confirmation-20261109T224126859684Z
+    used_for_choice: false
+    candidate_table:
+    - N: 1
+      lead_loss_sec:
+        burst: 0.0
+        creeping: 0.0
+        sawtooth: 0.0
+      leads:
+        burst:
+          median: 1826.4561039209366
+          n: 10
+          q1: 1794.0850293040276
+          q3: 1861.3450446724892
+        creeping:
+          median: 1761.7990995645523
+          n: 10
+          q1: 1753.5115339159966
+          q3: 1765.7048535346985
+        sawtooth:
+          median: 1799.426621556282
+          n: 10
+          q1: 1798.76712590456
+          q3: 1800.385933816433
+      pooled_lead:
+        median: 1797.907509803772
+        n: 30
+        q1: 1763.2137506604195
+        q3: 1802.1424071192741
+      qualifies: true
+      stable_after_fill:
+        median: 0.1772598870056497
+        n: 10
+        q1: 0.11016949152542374
+        q3: 0.22492937853107342
+    - N: 2
+      lead_loss_sec:
+        burst: 4.080895900726318
+        creeping: 4.065207004547119
+        sawtooth: 4.066589593887329
+      leads:
+        burst:
+          median: 1822.3752080202103
+          n: 10
+          q1: 1790.0026060938835
+          q3: 1857.2630130052567
+        creeping:
+          median: 1757.7338925600052
+          n: 10
+          q1: 1749.4364598989487
+          q3: 1761.6324219107628
+        sawtooth:
+          median: 1795.3600319623947
+          n: 10
+          q1: 1794.686585187912
+          q3: 1796.3075340986252
+      pooled_lead:
+        median: 1793.8267393112183
+        n: 30
+        q1: 1759.1447106003761
+        q3: 1798.0679537653923
+      qualifies: true
+      stable_after_fill:
+        median: 0.17019774011299435
+        n: 10
+        q1: 0.10522598870056497
+        q3: 0.21468926553672316
+    - N: 3
+      lead_loss_sec:
+        burst: 9.16807734966278
+        creeping: 9.143953561782837
+        sawtooth: 9.157198548316956
+      leads:
+        burst:
+          median: 1817.2880265712738
+          n: 10
+          q1: 1784.9197396039963
+          q3: 1852.188250362873
+        creeping:
+          median: 1752.6551460027695
+          n: 10
+          q1: 1744.358077764511
+          q3: 1756.540301322937
+        sawtooth:
+          median: 1790.269423007965
+          n: 10
+          q1: 1789.5995017290115
+          q3: 1791.225541293621
+      pooled_lead:
+        median: 1788.7446353435516
+        n: 30
+        q1: 1754.0632923841476
+        q3: 1792.9942148923874
+      qualifies: true
+      stable_after_fill:
+        median: 0.1638418079096045
+        n: 10
+        q1: 0.10063559322033898
+        q3: 0.2044491525423729
+    - N: 6
+      lead_loss_sec:
+        burst: 24.080479502677917
+        creeping: 24.067896127700806
+        sawtooth: 24.07558810710907
+      leads:
+        burst:
+          median: 1802.3756244182587
+          n: 10
+          q1: 1770.0023123025894
+          q3: 1837.2702765464783
+        creeping:
+          median: 1737.7312034368515
+          n: 10
+          q1: 1729.4211339950562
+          q3: 1741.6232939362526
+        sawtooth:
+          median: 1775.351033449173
+          n: 10
+          q1: 1774.682570874691
+          q3: 1776.285511136055
+      pooled_lead:
+        median: 1773.8231333494186
+        n: 30
+        q1: 1739.1364713311195
+        q3: 1778.074403166771
+      qualifies: true
+      stable_after_fill:
+        median: 0.14548022598870056
+        n: 10
+        q1: 0.08792372881355934
+        q3: 0.1811440677966102
+    - N: 12
+      lead_loss_sec:
+        burst: 54.14960336685181
+        creeping: 54.12012958526611
+        sawtooth: 54.12431812286377
+      leads:
+        burst:
+          median: 1772.3065005540848
+          n: 10
+          q1: 1739.9434975981712
+          q3: 1807.2145317196846
+        creeping:
+          median: 1707.6789699792862
+          n: 10
+          q1: 1699.3787217736244
+          q3: 1711.5586209893227
+        sawtooth:
+          median: 1745.3023034334183
+          n: 10
+          q1: 1744.6412065029144
+          q3: 1746.2462385296822
+      pooled_lead:
+        median: 1743.7713253498077
+        n: 30
+        q1: 1709.0814763307571
+        q3: 1748.0482085943222
+      qualifies: true
+      stable_after_fill:
+        median: 0.11440677966101695
+        n: 10
+        q1: 0.07097457627118645
+        q3: 0.1426553672316384
+    - N: 24
+      lead_loss_sec:
+        burst: 114.0511703491211
+        creeping: 114.0139331817627
+        sawtooth: 333.73783099651337
+      leads:
+        burst:
+          median: 1712.4049335718155
+          n: 10
+          q1: 1680.0224478244781
+          q3: 1747.3128597140312
+        creeping:
+          median: 1647.7851663827896
+          n: 10
+          q1: 1639.484257221222
+          q3: 1651.6699134111404
+        sawtooth:
+          median: 1465.6887905597687
+          n: 10
+          q1: 1463.2324550747871
+          q3: 1467.1991076469421
+      pooled_lead:
+        median: 1641.5309405326843
+        n: 30
+        q1: 1467.6361493468285
+        q3: 1671.8491320014
+      qualifies: false
+      stable_after_fill:
+        median: 0.054378531073446326
+        n: 10
+        q1: 0.031426553672316386
+        q3: 0.09004237288135594
+    path: bench\results\confirmation-20261109T224126859684Z\advice-persistence-secondary\secondary.json
+    sha256: 1c67558f05094a157be26fcbed63cbb1e01dff0e93ce90bc3f2f8e642a10b460
+  semantics: Independent scale/topology rule and pair counters; advance on collection
+    only, never API polls; false/missing condition resets; restart resets; N=1 exact
+    historical matching/caps. Other rule conditions unchanged.
+  comparison_labels:
+    OLS: OLS with chosen N
+    OLS_N1: same OLS point forecasts, N=1
+    Responsive: responsive with chosen N
+    Responsive_N1: same responsive point forecasts, N=1
+recording:
+  reference_dataset: baseline-20261001T111043363413Z
+  reference_manifest_sha256: bc368f7a9bce28e85bbe32f0736176cf0c7cde17d2c0d03cd25fa29cd28122e7
+  reference_arm: baseline
+  profile: baseline
+  waves: 1
+  repetitions_per_workload: 10
+  duration_seconds_per_wave: 3600
+  workloads:
+    creeping:
+      produce: 25.6
+      consume: 20
+      target_min: 25
+      target_max: 35
+    burst:
+      produce: 21
+      consume: 20
+      burst_at: 900
+      burst_seconds: 60
+      burst_rate: 157
+      target_min: 25
+      target_max: 35
+    sawtooth:
+      produce: 40
+      consume: 42
+      pause_seconds: 30
+      period_seconds: 180
+      target_min: 25
+      target_max: 40
+    flat_high:
+      produce: 20
+      consume: 20
+      fill_seconds: 60
+      fill_rate: 120
+  partitions_per_topic: 3
+  refresh_interval_seconds: 5
+  thresholds:
+    warning: 1000
+    critical: 10000
+  config:
+    clusters:
+    - name: bench
+      bootstrap_servers: kafka:29092
+      color: teal
+    alerts:
+      warning_threshold: 1000
+      critical_threshold: 10000
+    monitor:
+      refresh_interval: 5
+      group_topic_match: true
+      history_retention_days: 30
+    retention:
+      days: 30
+      prune_every_cycles: 60
+      prune_batch_size: 5000
+    forecast:
+      method: baseline
+      persist_every_cycle: true
+      record_inputs: true
+      trend_deadband_msgs_per_sec: 0.05
+      window_hours: 1
+    recommendations:
+      max_per_cluster: 10
+      max_per_pair: 2
+      rebalance_cycles_threshold: 3
+      confidence_gate:
+      - HIGH
+      - MEDIUM
+      forecast_persistence_cycles: 1
+    web:
+      host: 0.0.0.0
+      port: 8080
+  recording_method: Original OLS / N=1 collector, identical effective setup to Step
+    6; two point fitters and both persistence policies replayed on the same exact
+    input histories
+  seed_rule: SHA256(new run ID / new group ID), first four bytes; increment nonce
+    if collision with excluded seeds or another fresh repetition; never choose seeds
+    from outcomes
+  excluded_seeds:
+  - 19004492
+  - 103145608
+  - 109309833
+  - 131277088
+  - 147629362
+  - 181903701
+  - 211577891
+  - 223344641
+  - 236763313
+  - 252890396
+  - 282586271
+  - 363396785
+  - 366631429
+  - 434350315
+  - 578372468
+  - 608538644
+  - 632178580
+  - 640701667
+  - 700698838
+  - 718471548
+  - 741775740
+  - 868574249
+  - 967990449
+  - 1000357444
+  - 1021013186
+  - 1043277931
+  - 1049553590
+  - 1051597113
+  - 1079185059
+  - 1117280894
+  - 1120754324
+  - 1178067094
+  - 1182587992
+  - 1345232965
+  - 1358478890
+  - 1450861988
+  - 1498917609
+  - 1499711235
+  - 1500229415
+  - 1517883436
+  - 1585709127
+  - 1594171237
+  - 1601813033
+  - 1616025589
+  - 1677757242
+  - 1698305495
+  - 1748231658
+  - 1763112725
+  - 1780465994
+  - 1826312673
+  - 1922555866
+  - 1931253774
+  - 2006095962
+  - 2036039963
+  - 2083560000
+  - 2103684006
+  - 2178291780
+  - 2203744348
+  - 2213899489
+  - 2230587876
+  - 2283908971
+  - 2284539506
+  - 2289473427
+  - 2354393704
+  - 2387298645
+  - 2411018364
+  - 2441923448
+  - 2453818100
+  - 2479790708
+  - 2480667100
+  - 2490528917
+  - 2524525766
+  - 2542293082
+  - 2547546987
+  - 2614897884
+  - 2650347618
+  - 2665479827
+  - 2691238120
+  - 2779325290
+  - 2800246735
+  - 2866568514
+  - 2925222744
+  - 2948625906
+  - 2953114741
+  - 2957378494
+  - 2989688213
+  - 3015936888
+  - 3036172373
+  - 3125343372
+  - 3155388575
+  - 3203083942
+  - 3232498554
+  - 3324869593
+  - 3439960302
+  - 3490150598
+  - 3523290703
+  - 3533474247
+  - 3551543444
+  - 3627459039
+  - 3653556064
+  - 3663971896
+  - 3726052358
+  - 3745493286
+  - 3757107280
+  - 3758409686
+  - 3776220330
+  - 3794767782
+  - 3813017363
+  - 3825512067
+  - 3845117440
+  - 3880423258
+  - 3904919791
+  - 4001802033
+  - 4068194009
+  - 4082118727
+  - 4088262414
+  - 4210040426
+  - 4217939973
+  - 4268887243
+  - 4272056788
+sampling:
+  origins: all canonical exact ordered input-ID observations, earliest persisted row;
+    within each generator first/last observation; no minute sampling
+  inputs: exact saved ordered input_ids_json; shared one-hour maximum raw history,
+    selected responsive window 5 min / .5; no downsampling for OLS/Responsive
+  nonlinear: existing regular_series right-edge five-second grid, causal carry-forward;
+    Holt fixed initialization; ARIMA d=1 with drift and convergence failure handling
+    unchanged; failures stay missing and counted
+ranges:
+  v1: bench/range_calibration.yml
+  v2: bench/range_calibration_v2.yml
+  applicable_models:
+  - OLS
+  - Responsive
+  positive_domain: 0 < predicted remaining <=1800 sec and issue time < observed crossing;
+    horizon bins use predicted remaining time
+  grouping: v1 horizon-only; v2 frozen per-mode candidate and n<200 horizon fallback;
+    no refit/recalibration
+  beyond_30: v1 retained for comparison; v2 no range when predicted >1800 sec; do
+    not truncate upper bounds of shorter predictions
+metrics:
+  truth: first measured lag CRITICAL crossing, linear interpolation between bracketing
+    samples; independent produced-consumed crossing for quality checks
+  table5:
+    source: bench/model_comparison_alignment.py:aligned_model
+    creeping_sawtooth: abs(issue_time + positive ETA - observed crossing), issued
+      before crossing; bins by ACTUAL remaining horizon (0,300], (300,900], (900,1800]
+      sec
+    burst: secondary_metrics S5_after_M1_0-15; issue >= metadata.started_at + burst_at
+      + burst_seconds (burst END), before crossing, 0 < actual remaining <=900 sec,
+      positive ETA
+    aggregation: median absolute error within each repetition, then median and inclusive
+      Q1/Q3 across repetitions; missing cells null, counts retained
+  positive_crossing_coverage: 'same Table 5 temporal cells: positive ETA and enough_data
+    / ALL canonical eligible origins including missing/failed/no-crossing; per-repetition
+    fractions plus median inclusive Q1/Q3 and pooled counts; do not mistake conditional
+    error for unconditional coverage'
+  stable_false_crossings: 'bench.model_comparison_alignment.false_crossing: share
+    0 < ETA <=1800 among available forecasts; missing counted separately; median inclusive
+    Q1/Q3 of repetition shares'
+  gated_advice: 'OLS and Responsive only: existing recommender.analyze_row with confidence
+    gate HIGH/MEDIUM and existing short-trend eligibility; scale/topology, HIGH/MEDIUM.
+    No invented Holt/ARIMA R2 gate (N/A). Replay all matching pair rules apply_cap=False
+    as archived; no new cap/rule Applied to OLS and Responsive with chosen N and N=1;
+    same point forecasts for both policies, per-rule independent collection-cycle
+    counters.'
+  stable_gated_advice: 'archived M6_false_alarm_cycle_fraction: distinct advice timestamps
+    / canonical forecasts per stable repetition; also S1_fill_advice_fraction and
+    S1_after_fill_advice_fraction mapped to preceding origin, boundary metadata.started_at+fill_seconds.
+    Report live-recorded OLS advice separately and check exact-input rule-set fidelity'
+  advice_lead: archived M4_advice_lead_seconds = crossing minus earliest HIGH/MEDIUM
+    scale/topology advice strictly before crossing; missing if none. Also archived
+    S2_critical_minus_advice signed lead to first advice
+  range_coverage: v1 and v2, OLS and Responsive, each crossing workload and pooled;
+    bins (0,300], (300,900], (900,1800] sec of PREDICTED remaining. Share observed
+    remaining inside inclusive bounds; missing range uncovered. Median width in seconds
+    over finite shown bounds, n/range_n/covered retained; pooled 0-30 separately
+  stable_showing_range: all canonical stable forecasts including nonpositive/missing
+    in denominator; v1/v2 counts and shares all, predicted 0-30, predicted >30; v2
+    >30 count must be zero
+  failures: all origins, availability/missing, numerical fit failures/reasons, timing,
+    OLS recorded-versus-replay field mismatches; retain outliers and failed fits,
+    no fallback model
+quality:
+  rate_relative_drift_max: 0.05
+  commit_gap_seconds_max: 1
+  starts_at_zero: true
+  independent_truth_agreement_seconds: 5
+  truth_agreement_fraction_min: 0.95
+  flat_must_not_cross: true
+  unexplained_OLS_field_mismatches: 0
+  unexplained_recorded_advice_rule_set_mismatches: 0
+  policy: report checks and keep all results even if quality fails; no silent repeat
+    or exclusion
+reuse_receipts:
+  directory: bench\results\confirmation-checks-20261109T204115
+  evidence:
+    tag: revision-r1-confirmation-frozen
+    commit: 4175f007f16c3502ca5ae4b51e0256ada1543965
+    plan_sha256: 8fdc2a29472422a00d94bd68d0cef608a25fe9695d3ee76489ac535079700296
+  files:
+    confirmation-checks.json: 1cef933633264c69a5cd0951c74c4c4f6b72ea504ce4e5f245639a0d651e8744
+    smoke-passed.json: 2b39aec4aa7ee4c8897503a1623abda86cd59a82427b86617ea2ceaeefe6cbe3
+    calibration-passed.json: da38aaddf4938f582ebceba8aa699ca92246f1df1c47e1f7715d1868a21a691b
+  reason: Same four generators, rates, partitions, 5-second collection, thresholds,
+    original OLS/N=1 collection policy and unchanged raw setup fingerprints. N=1 is
+    explicit in the new snapshot to preserve the previous implicit default; only live
+    default and replayed advice persistence differ.
+execution:
+  record: python bench/final_confirmation.py record
+  evaluate: python bench/final_confirmation.py evaluate --dataset bench/data/<new-run-id>
+    --workers 8
+  freeze_guard: HEAD and working tree exactly equal revision-r1-final-frozen, plan
+    hash and all listed file hashes verified before any recording/evaluation
+  last_attempt_ledger: bench/results/final-confirmation-recording-attempt.json, exclusive
+    create even for failed/interrupted recording; no automatic or silent second attempt
+  evaluation: Two real point-model replays, OLS and Responsive, once each; derive
+    N=12 and N=1 advice policies without refitting. All registered metrics, exclusive
+    output folder, report tables and final coverage file published after complete
+    aggregation.
+  output: bench/results/<new-run-id>/confirmation/; report appended to internal/revision-r1-step7-report.md
+  coverage_source: bench/results/final-confirmation-latest.json points to final summary_path/SHA256,
+    never previous evaluation coverage
+  figure: 'Only after final results: python bench/capture_forecast_demo.py --method
+    multiwindow --scenario established; 15 producer, 10 consumer, >=600 s actual selected
+    history, calibrated range and sustained scale advice'
+  no_followup: Default N=12 is retained regardless of result, including poor coverage
+    or quality failure. No further recording or tuning.
+file_sha256:
+  config.yml: fe387f304b452502fcb55c0b008c3b15dd55c3892ff9e7c01104c439c5ee3f3a
+  config.bench.yml: f9a4ba7c7bf240780d992e4cd3032c4705f3b40ae344f8f00a5b851b89161a7b
+  config.bench.smoke.yml: 1336946e779e4d76b7e78a145e6c90c1c16893ade8e5ea59838867075380ae61
+  bench/patterns.yml: 49aa8f4ccdd58a91307ee8bea71e6c736c73c046d9be91c35f0f974d54f20db4
+  bench/forecaster_params_responsive.yml: 189ebc281ac07b47ae98312bc78bbeef2f2e0de3231f8e85d964595f47cb2381
+  bench/model_comparison_params.yml: bbe6d92a4dd2289049a6cee142cf6bc722fc49636c1674e162fafb1658cedd6b
+  bench/model_comparison_params_arima_check.yml: b534760ab2bf643b4ab83cbe4dacc35087369cad7b7a7ff198f3379aba7a452e
+  bench/range_calibration.yml: 855f988e998f74c990f2094e252e37f04e82a58184ad78ca1098c9f17b6250aa
+  bench/range_calibration_v2.yml: d40329bf0649889ad85b47f815095072365434c0220a5146182789396f66a495
+  core/forecasting.py: 9146f82c1f973fde268d1bc4fc02b0542946fdcc11f329b1dec07168f87f7d59
+  core/config_loader.py: d9b1137dce70b37249ccfc0be40eeed6c2ad35b69ad201d9d36072eeb16789e9
+  core/multiwindow.py: 5ff79cfcc0872b5a7714ecb9ddf1e176ddf9d398f8c695bc44b9e31aabed1294
+  core/range_groups.py: ba62383329c2633c9f36971f068047c7222349c53faaa3298fc156764a76ea6a
+  core/range_calibration.py: 9440a44768871372a98c71a06c230a53abd7aa2d0c97ebeb98deeeffb1e69759
+  core/range_calibration_v2.yml: d40329bf0649889ad85b47f815095072365434c0220a5146182789396f66a495
+  core/range_calibration_v2_results.json: c21ee6b1099c08204975fbed6f83879a0773327dc4e93b8e5f41d23ac8b2fd73
+  core/recommender.py: 09eb89c1dc505c1884be62328a03435b421e22251ea1ce12a35bfeeb58589d0d
+  core/db.py: 608dfce942409230f840aa5640ab24042d0bbe2f725f59cd0b02f1e473935c1a
+  core/scheduling.py: 888efe1ab792b178840647fe20fb828179c927ae42aeec28cd259cd45b9b5296
+  interfaces/web.py: 0c2980a30b1622195f170b2f0d5971285d22efca796a54deae61c7f7f5a7f09a
+  bench/workload.py: a9f1f01ae63f2ba484bc0729783f66d5f9b3e56b417e2784afe377fe058b4932
+  bench/common.py: ce47f0dfc65725428f5135752ff3c69ff5d8c58df79751c67ce996743743aa0f
+  bench/replay.py: de8f2db3d626e777e2e15404d57029d2c1d63015a18b8121ed2d3cacbc8cfca6
+  bench/secondary.py: 300dbdeeb17f21dc04be0c38a1ae6e494e39d589558d0be67448085804a6f7ce
+  bench/forecast_eval.py: a540dd45da3e5e9a2b07f4cf9bbe8ad965e9f113a96d3ea2a1ad06d6cb11bcac
+  bench/comparison_models.py: b76f358491c4165018aead7674905e6321b6074724861b232db88043b9a1465d
+  bench/model_comparison_alignment.py: 2bc88818f3f7c72d5081ef21d9fe195fb57f0b5b540b9857b626c606d69a4f69
+  bench/confirmation.py: ab906cef95a170ca322d83d8cbf1f26c8cfb75770da1ccd5e4ae995cb3c8df0b
+  bench/confirmation_eval.py: 7cdadb81d79fba4df3b8b1ca8e6cfdb693e5dd24429033fa07db9a33db6589f4
+  bench/run_forecast_validation.py: 581825d221da8948e69babae3823f800a468b50e2cefadbe3a685aa67519b7d2
+  bench/calibrate.py: 1e343ae8c24b3824d02710b00e51d6da435a3b09d2f48a6d1e005ba3ea84508f
+  bench/export_run.py: 3ab86cd26f846798aa3d952cfce612862c4e6b35b89a33092901813d00a922da
+  requirements.txt: 86abd7798bfdd98acbd2393891e513ed1c6327627158f8f9cf9430c3b9803fb0
+  requirements-bench.txt: cce1fe6ea10ba3d05a42b04f17afdd8922c06b228d551becba594341c54a6274
+  requirements-dev.txt: f590eebb5bb6a57bd7a61a0572ba9dc4c4b9fa068414fe8d8b83c71d0feec0f0
+  pyproject.toml: 0f5e1bfa9771027cbb08b15e03b57f11fbd4457a9d4e24c8eaac9b487be1464e
+  Dockerfile: a9049e2b528b46893a3fe1a0fc2d0a2aed85bedd6c231a04d3fbf33849e3a914
+  docker-compose.bench.yml: fee878414b27bf65a6cf527b4d43b62034d02d8b96bb29c24822edc68af084f3
+  core/advice_persistence.py: 445a31d5fc65b9de6bb4b6cb07fa56d108d850584a77e8958c96c850d42f8d47
+  bench/final_confirmation.py: c6a59df2785ae63309fb8ac66fccb3d8ae3a92c2dd82486dd6616a68d686d9df
+  bench/select_advice_persistence.py: 11d2c681ac69db504dea16da59443374672d5dcdbe4307a0be3750998f99051d
+  bench/aggregate_confirmation.py: 0a6d66d59b643e3604864e35fe44e6e6233e4a730d97c6391a80ecb4beb02fe5
+  bench/capture_forecast_demo.py: a7acbeaecced09e025e84ea76644d30e1d026ba21a67c18dcb67aa098c764e80
+  docker-compose.yml: d78385bb3f80f833b106ce7dcc693d59048f2d15e08f729bc725c0966f657868
+  static/js/dashboard.js: 6d8304603965169957c481da42aa2243035feba45e90d957f8ce0183efff46c8
+  static/css/dashboard.css: 6a04125e36f79ca53f217e52278afb9515b3c06e3106777f76fee28f21c70e0a
+  templates/dashboard.html: 719893939013c315df96f97362b9ebc229fff5cf4f727c0995ed0cd99ce857bc
+  bench\results\baseline-20261001T111043363413Z\advice-persistence-selection\selection.json: d277406d8b1e5cf69017a83e77ab79d705b8af7a1e5c745c7993d413f963832f
+  bench\results\confirmation-20261109T224126859684Z\advice-persistence-secondary\secondary.json: 6db4c6207640510c0368cfd1813e708f11ab5bbc0ea011f9b982cd3098474323

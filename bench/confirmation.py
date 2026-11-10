@@ -67,6 +67,23 @@ def check_receipt_stage(path, name, evidence):
     return path
 
 
+
+def validate_receipts(plan,evidence,directory):
+    from bench.run_forecast_validation import require_approval_receipts
+    directory=Path(directory)
+    lock=json.loads((directory/'confirmation-checks.json').read_text())
+    if lock != evidence:
+        allowed=plan.get('reuse_receipts',{})
+        if lock != allowed.get('evidence'):
+            raise ValueError('Receipts belong to another freeze/setup')
+        for name,digest in allowed.get('files',{}).items():
+            if hashlib.sha256((directory/name).read_bytes()).hexdigest()!=digest:
+                raise ValueError('Reused receipt changed: '+name)
+        if not allowed.get('files'):
+            raise ValueError('No pre-registered receipt reuse')
+    require_approval_receipts(directory)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("stage", choices=["check", "smoke", "calibrate", "record", "evaluate"])

@@ -15,6 +15,7 @@ def database(tmp_path, monkeypatch, request):
     monkeypatch.setattr(db, "DB_PATH", tmp_path / "history.db")
     monkeypatch.setattr(fc, "_cache", None)
     monkeypatch.setitem(fc.CONFIG, "forecast", dict(fc.CONFIG["forecast"], method=request.param, persist_every_cycle=False))
+    monkeypatch.setitem(recommender.CONFIG,"recommendations",dict(recommender.CONFIG["recommendations"],forecast_persistence_cycles=1))
     db.init_db()
     return db.DB_PATH
 

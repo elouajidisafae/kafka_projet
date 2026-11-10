@@ -35,6 +35,7 @@ def test_short_cycle_waits_only_remaining_period():
 
 
 def test_pre_cap_logging(tmp_path,monkeypatch):
+    monkeypatch.setitem(recommender.CONFIG,"recommendations",dict(recommender.CONFIG["recommendations"],forecast_persistence_cycles=1))
     monkeypatch.setattr(db,"DB_PATH",tmp_path/"history.db")
     monkeypatch.setitem(db.CONFIG,"run_id","test-recording")
     db.init_db(); db.init_db()

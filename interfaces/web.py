@@ -108,7 +108,8 @@ def _background_collector():
 
             maybe_purge_old_records()
             forecast_all()
-            recommendations = get_recommendations(persist=True)
+            recommendations = get_recommendations(persist=True,collection_pairs={
+                (r.cluster_name,r.group_id,r.topic) for r in results if r.status not in {'ERROR','UNKNOWN'} and r.total_lag >= 0})
             from core.forecasting import forecasts_for_request
             global _forecast_advice_snapshot
             _forecast_advice_snapshot = (forecasts_for_request(), recommendations)
