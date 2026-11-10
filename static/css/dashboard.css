@@ -595,3 +595,6 @@ html.light .nav-link.active {
   white-space: nowrap;
 }
 .forecast-origin { font-size: .65rem; color: var(--text-muted); }
+
+.forecast-row > span:nth-child(5) .eta-badge { white-space: normal; max-width: 100%; }
+.forecast-row > span:nth-child(6) { overflow-wrap: anywhere; }

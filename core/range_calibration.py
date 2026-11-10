@@ -7,7 +7,7 @@ import yaml
 from .range_groups import factor_for
 
 PATH = Path(__file__).with_name("range_calibration_v2.yml")
-RESULTS_PATH = Path(__file__).with_name("range_calibration_v2_results.json")
+RESULTS_PATH = Path(__file__).resolve().parents[1]/"bench/results/final-confirmation-latest.json"
 
 @lru_cache(maxsize=1)
 def load():
@@ -22,8 +22,17 @@ def load():
 @lru_cache(maxsize=1)
 def measured_coverage():
     try:
-        return json.loads(RESULTS_PATH.read_text()).get("pooled_coverage", {})
-    except (OSError, ValueError, AttributeError):
+        pointer = json.loads(RESULTS_PATH.read_text())
+        import hashlib
+        source = Path(__file__).resolve().parents[1]/pointer['summary_path']
+        raw = source.read_bytes()
+        if hashlib.sha256(raw).hexdigest() != pointer['sha256']:
+            return {}
+        result = json.loads(raw)
+        return {mode: next(r['coverage'] for r in result['ranges'][model]['table']
+                          if r['pattern']=='pooled' and r['bin']=='0-30' and r['version']=='v2')
+                for mode,model in pointer['model_modes'].items()}
+    except (OSError, ValueError, AttributeError, KeyError, StopIteration):
         return {}
 
 

@@ -365,13 +365,6 @@ function loadForecastChart(index) {
     x: (Date.parse(p.recorded_at) - origin) / 1000, y: p.total_lag
   }));
   const projection = (f.display.curve || []).map(p => ({x:p.seconds, y:p.lag}));
-  const band = showForecastRange ? (f.prediction_band || []) : [];
-  const bounds = band.length ? [
-    {label: '90% prediction lower bound', data: band.map(p => ({x:p.seconds, y:p.lower})),
-     borderWidth: 0, pointRadius: 0, fill: false},
-    {label: '90% prediction band (nominal)', data: band.map(p => ({x:p.seconds, y:p.upper})),
-     borderWidth: 0, pointRadius: 0, backgroundColor: '#EF9F2733', fill: '-1'}
-  ] : [];
   const first = Math.min(...observed.map(p => p.x));
   const rangeLow = f.eta_critical_low_sec;
   const rangeHigh = f.eta_critical_high_sec;
@@ -405,7 +398,6 @@ function loadForecastChart(index) {
     type: 'line',
     plugins: [crossingRange],
     data: {datasets: [
-      ...bounds,
       {label:'Observed lag', data:observed, borderColor:'#378ADD', pointRadius:3},
       {label:'Forecast (regression)', data:projection, borderColor:'#EF9F27',
        borderDash:[6,3], pointRadius:context => [0,300,900].includes(context.raw?.x) ? 4 : 0},
@@ -416,7 +408,7 @@ function loadForecastChart(index) {
       responsive:true, maintainAspectRatio:false, animation:false, locale:'en-GB',
       elements: {line: {tension:0, fill:false}},
       plugins: {
-        legend: {display:band.length > 0},
+        legend: {display:false},
         tooltip: {callbacks: {
           title: items => {
             const seconds = items[0].parsed.x;

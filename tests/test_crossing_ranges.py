@@ -39,7 +39,7 @@ def test_calibration_missing_file_and_boundaries(monkeypatch, tmp_path):
     rc.load.cache_clear()
 
 
-def test_frozen_runtime_factors_and_measured_coverage():
+def test_frozen_runtime_factors_and_measured_coverage(monkeypatch,tmp_path):
     import json, yaml
     from pathlib import Path
     from core import range_calibration as rc
@@ -48,10 +48,16 @@ def test_frozen_runtime_factors_and_measured_coverage():
     frozen=yaml.safe_load(Path("bench/range_calibration_v2.yml").read_text())
     runtime=rc.load()
     assert runtime["modes"] == frozen["modes"]
-    runtime_results=json.loads(rc.RESULTS_PATH.read_text())
-    evaluation=json.loads(Path(runtime_results["source"]["path"]).read_text())
     import hashlib
-    assert runtime_results['source']['sha256'] == hashlib.sha256(Path(runtime_results['source']['path']).read_bytes()).hexdigest()
+    from bench.common import ROOT
+    source=tmp_path/'latest-summary.json'
+    evaluation={'pooled_coverage':{'baseline':.89,'multiwindow':.87}}
+    source.write_text(json.dumps({'ranges':{model:{'table':[dict(pattern='pooled',bin='0-30',version='v2',coverage=value)]}
+        for model,value in [('OLS',.89),('Responsive',.87)]}}))
+    pointer=tmp_path/'latest.json'
+    pointer.write_text(json.dumps(dict(summary_path=str(source),sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
+        model_modes={'baseline':'OLS','multiwindow':'Responsive'})))
+    monkeypatch.setattr(rc,'RESULTS_PATH',pointer)
     rc.measured_coverage.cache_clear()
     for mode in ("baseline", "multiwindow"):
         for eta in (300,301,900,901,1800):

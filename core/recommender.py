@@ -72,11 +72,12 @@ def analyze_row(cluster, group_id, topic, current_lag, state, trend, forecast,
                            metrics={key: values[key] for key in keys}))
 
     interval_text = f"R2={r_squared}"
-    if forecast.get("method") == "multiwindow" and CONFIG.get("forecast", {}).get("show_range", False):
-        low, high = forecast.get("eta_critical_formula_low_sec", forecast.get("eta_low_sec")), forecast.get("eta_critical_formula_high_sec", forecast.get("eta_high_sec"))
-        interval_text = ("range unavailable" if low is None else
+    if "eta_critical_low_sec" in forecast or CONFIG.get("forecast", {}).get("show_range", False):
+        low, high = forecast.get("eta_critical_low_sec"), forecast.get("eta_critical_high_sec")
+        interval_text = ("more than 30 min" if (forecast.get("eta_critical_sec") or 0) > 1800 else
+                         "range unavailable" if low is None else
                          f"range {low / 60:.1f} min or later" if high is None else
-                         f"range {low / 60:.1f}–{high / 60:.1f} min")
+                         f"range {low / 60:.1f} to {high / 60:.1f} min")
 
     if (trend == "INCREASING" and gate and state not in {"EMPTY", "DEAD"}
             and topology_known and consumer_count < partition_count
@@ -88,7 +89,8 @@ def analyze_row(cluster, group_id, topic, current_lag, state, trend, forecast,
 
     if trend == "INCREASING" and gate and topology_known and consumer_count >= partition_count:
         emit("topology", "CAPACITY", "MEDIUM", "Partition count may be limiting",
-             f"Lag is rising at {slope_per_min} msg/min while all {partition_count} partitions are already assigned to {consumer_count} consumers.",
+             f"Lag is rising at {slope_per_min} msg/min while all {partition_count} partitions are already assigned to {consumer_count} consumers."
+             + (f" CRITICAL crossing: {interval_text}." if "eta_critical_low_sec" in forecast else ""),
              f"Review partition count for topic '{topic}' before adding consumers.",
              ("slope_per_min", "confidence", "consumer_count", "partition_count"))
 
