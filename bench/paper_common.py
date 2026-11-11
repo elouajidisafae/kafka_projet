@@ -185,17 +185,18 @@ def broker_up(output):
     return image
 
 
-def start_khm(image, directory, cfg, name="khm-paper-monitor", network="khm-bench_default", port=18080):
+def start_khm(image, directory, cfg, name="khm-paper-monitor", network="khm-bench_default", port=18080, results_root=None):
     directory.mkdir(parents=True,exist_ok=True)
     data=directory/"data";data.mkdir(exist_ok=True)
     config=directory/"config.yml";config.write_text(yaml.safe_dump(cfg),encoding="utf-8")
     existing=command("docker","ps","-a","--format","{{.Names}}").splitlines()
     if name in existing:
         command("docker","rm","-f",name)
+    mounts = [] if results_root is None else ["--mount", f"type=bind,source={results_root},target=/app/bench/results,readonly"]
     command("docker","run","-d","--name",name,"--network",network,"--memory","2g",
             "-p",f"127.0.0.1:{port}:8080","-e","KHM_DB_PATH=/app/data/lag_history.db",
             "--mount",f"type=bind,source={config},target=/app/config.yml",
-            "--mount",f"type=bind,source={data},target=/app/data",image)
+            "--mount",f"type=bind,source={data},target=/app/data",*mounts,image)
     wait_for(lambda:http(f"http://127.0.0.1:{port}/api/status")["status"]==200)
 
 

@@ -9,8 +9,27 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from bench.paper_common import *
 
 
-def run(commit, smoke=False):
-    output,manifest=begin("scalability",commit,smoke)
+def released_config(groups, topics):
+    """Use released settings, adapting only benchmark routing and pair selection."""
+    cfg=yaml.safe_load((ROOT/"config.yml").read_text(encoding="utf-8"))
+    cfg["clusters"]=[dict(cfg["clusters"][0],name="bench",bootstrap_servers="kafka:29092")]
+    cfg["include_groups"]=groups
+    cfg["exclude_groups"]=[]
+    from confluent_kafka.admin import AdminClient
+    all_topics=AdminClient({"bootstrap.servers":"localhost:19092"}).list_topics(timeout=20).topics
+    cfg["exclude_topics"]=[t for t in all_topics if t not in topics]
+    return cfg
+
+
+def run(commit, smoke=False, released_default=False, output_prefix=None, results_root=None):
+    if released_default:
+        results_root=Path(results_root or ROOT/"bench/results").resolve()
+        pointer=results_root/"final-confirmation-latest.json"
+        provenance=json.loads(pointer.read_text(encoding="utf-8"))
+        summary=results_root.parent.parent/provenance['summary_path']
+        if hashlib.sha256(summary.read_bytes()).hexdigest()!=provenance['sha256']:
+            raise ValueError("Final coverage summary hash mismatch")
+    output,manifest=begin(str(output_prefix) if output_prefix else "scalability",commit,smoke)
     rows=[]
     try:
         quiet_docker(["khm-bench-kafka-1","khm-bench-khm-1","khm-paper-monitor"])
@@ -18,16 +37,21 @@ def run(commit, smoke=False):
         manifest.update(images={"khm":image_details(image),"kafka":image_details(IMAGES["kafka"])},
                         warmup_seconds=30 if smoke else 60,window_seconds=15 if smoke else 120,
                         repetitions=1 if smoke else 5,
+                        configuration="released config.yml" if released_default else "original Table 6 baseline config.bench.yml",
                         workload="One three-partition topic; N committed inactive groups; static lag 300 per pair",
                         memory="VmRSS of KHM PID 1; bytes", sampling="Completed collection cycles only; no duplicate gauge observations")
+        if released_default:
+            manifest.update(released_config_sha256=hashlib.sha256((ROOT/'config.yml').read_bytes()).hexdigest(),
+                            coverage_provenance=provenance,
+                            range_factors_sha256=hashlib.sha256((ROOT/'core/range_calibration_v2.yml').read_bytes()).hexdigest())
         write_json(output/"manifest.json",manifest)
         sizes=[10] if smoke else [10,100,500]
         for rep in range(manifest["repetitions"]):
             for size in rotated(sizes,rep):
                 directory=output/f"r{rep}-{size}"
                 groups,topics=seed_pairs(size,f"paper-scale-{int(time.time())}-{rep}-{size}")
-                cfg=benchmark_config(groups,topics)
-                start_khm(image,directory,cfg)
+                cfg=released_config(groups,topics) if released_default else benchmark_config(groups,topics)
+                start_khm(image,directory,cfg,results_root=results_root if released_default else None)
                 wait_for(lambda:len(api("/api/status")["data"])==size,seconds=600)
                 time.sleep(manifest["warmup_seconds"])
                 text=http("http://127.0.0.1:18080/metrics")["body"]
@@ -74,4 +98,7 @@ if __name__=="__main__":
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--commit",required=True)
     parser.add_argument("--smoke",action="store_true")
-    args=parser.parse_args();run(args.commit,args.smoke)
+    parser.add_argument("--released-default",action="store_true",help="Load released config.yml; adapt only broker routing and pair filters")
+    parser.add_argument("--output-prefix",type=Path,help="Fresh output directory; smoke appends -smoke")
+    parser.add_argument("--results-root",type=Path,help="Read-only results mount for released calibrated coverage provenance")
+    args=parser.parse_args();run(args.commit,args.smoke,args.released_default,args.output_prefix,args.results_root)

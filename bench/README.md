@@ -79,6 +79,8 @@ First validate with `--smoke` (one short repetition, separate outputs). Full run
 
 Outputs are under `bench/results/scalability/` (or `bench/results/scalability-smoke/` for smoke), including manifests and raw observations. Existing runs are never overwritten; failed runs remain available for diagnosis.
 
+For the released-default Table 6 revision, use `--released-default --output-prefix <new-absolute-folder> --results-root <absolute-repo>/bench/results` on both smoke and full commands. This loads `config.yml` unchanged apart from broker/cluster routing and pair-selection filters: responsive 5 min / 0.5, calibrated v2 ranges, and advice persistence 12. The original protocol above uses OLS and `config.bench.yml`; do not describe it as the released-default measurement. The revised runner mounts final coverage results read-only and verifies their summary hash. Pair counts, rotated five repetitions, warm-up, windows, phase timing and PID-1 RSS aggregation stay unchanged. Use a clean checkout at the measured commit and retain effective configs and manifests. No predictive recording or tuning is involved.
+
 Re-running the recording procedure produces a new dataset; results are expected to be close to, but not identical with, the published values.
 
 
