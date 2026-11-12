@@ -25,7 +25,18 @@ def test_live_matches_frozen_offline_v3(monkeypatch, values):
     rows=records(values)
     expected=V3(cfg).fit(rows,datetime.now(timezone.utc),cfg['alerts'])
     actual=forecasting.fit_configured_forecast(rows,'c','g','t')
-    assert {k:(actual['eta_critical_formula_'+('low' if k=='eta_low_sec' else 'high')+'_sec'] if k in {'eta_low_sec','eta_high_sec'} else actual[k]) for k in expected}==expected
+    # Fixed formula bounds use a stdlib t quantile now; allow only numerical
+    # inversion roundoff there. All point/selection/gate fields remain exact.
+    nominal={'eta_low_sec','eta_high_sec'}
+    assert {k:actual[k] for k in expected if k not in nominal}=={k:v for k,v in expected.items() if k not in nominal}
+    for key,side in [('eta_low_sec','low'),('eta_high_sec','high')]:
+        if key not in expected:
+            continue
+        value=actual['eta_critical_formula_'+side+'_sec']
+        if expected[key] is None:
+            assert value is None
+        else:
+            assert value==pytest.approx(expected[key],rel=1e-12,abs=1e-8)
     if len(values)==400 and values[-1]>5000:
         assert actual['window_used']=='short' and actual['regime_change']
     for p in actual.get('prediction_band',[]):

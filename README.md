@@ -68,9 +68,13 @@ Forecasts are linear extrapolations. Evaluation reports prediction errors and fa
 ## Tests
 
 ```bash
-pip install -r requirements.txt -r requirements-dev.txt
+pip install -r requirements.txt -r requirements-dev.txt -r requirements-bench.txt
 python -m pytest -q
 ```
+
+The runtime uses NumPy and a standard-library Student-t quantile for nominal
+formula bounds; it does not import SciPy. SciPy remains in `requirements-bench.txt`
+for frozen offline benchmark models and independent numerical reference tests.
 
 ## License
 

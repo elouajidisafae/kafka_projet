@@ -1,7 +1,7 @@
 """Live multiwindow forecasting, equivalent to the frozen offline V3."""
 from datetime import datetime
 import numpy as np
-from scipy.stats import t as student_t
+from .student_t import student_t_95
 
 
 def prediction_interval(records, threshold, level=.90):
@@ -20,7 +20,7 @@ def prediction_interval(records, threshold, level=.90):
         return None, None
     slope, intercept = np.polyfit(x, y, 1)
     residual_variance = float(np.sum((y-(slope*x+intercept))**2)/(n-2))
-    k2 = float(student_t.ppf(.95, n-2)**2 * residual_variance)
+    k2 = float(student_t_95(n-2)**2 * residual_variance)
     # Solve in future seconds, avoiding cancellation from absolute timestamps.
     offset = float(x[-1]-mean)
     fitted = float(slope*x[-1]+intercept)
@@ -85,7 +85,7 @@ def prediction_band(records):
     if len(x)<3 or sxx<=0:
         return []
     slope, intercept = np.polyfit(x,y,1)
-    k2 = float(student_t.ppf(.95,len(x)-2)**2 * np.sum((y-(slope*x+intercept))**2)/(len(x)-2))
+    k2 = float(student_t_95(len(x)-2)**2 * np.sum((y-(slope*x+intercept))**2)/(len(x)-2))
     points=[]
     for seconds in range(0,901,50):
         future=x[-1]+seconds
