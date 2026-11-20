@@ -6,6 +6,7 @@ Run by the owner: Docker build/startup can exceed five minutes.
 import argparse
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -122,6 +123,9 @@ def run():
             assert page.locator('#active-alert-total').count() == 0
             page.evaluate("document.fonts.ready")
             page.screenshot(path=str(output / "figure-overview.png"), full_page=True, animations="disabled")
+            with urlopen("http://127.0.0.1:8080/metrics", timeout=10) as response:
+                metrics = response.read()
+            (output / "metrics.txt").write_bytes(metrics)
 
             browser.close()
         (output / "health-score.json").write_text(json.dumps(health, indent=2), encoding="utf-8")
@@ -130,7 +134,8 @@ def run():
         dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip()
         manifest = {"kind": "illustrative_live_health_demo", "commit": commit, "dirty": bool(dirty),
                     "captured_at": datetime.now(timezone.utc).isoformat(), "topics": topics,
-                    "expected_score": 56, "expected_grade": "Critical", "benchmark_evidence": False}
+                    "expected_score": 56, "expected_grade": "Critical", "benchmark_evidence": False,
+                    "metrics": {"file": "metrics.txt", "sha256": hashlib.sha256(metrics).hexdigest()}}
         (output / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         print("Capture saved:", output)
     finally:
